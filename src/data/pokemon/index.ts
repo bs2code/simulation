@@ -17,4 +17,13 @@ export function getAllSpecies(): PokemonSpecies[] {
   return SPECIES_LIST;
 }
 
+/** Looks up a species by id or by display name (case-insensitive). Returns undefined if no match. */
+export function findSpecies(query: string): PokemonSpecies | undefined {
+  const normalized = query.trim().toLowerCase();
+  return (
+    SPECIES_BY_ID.get(normalized) ??
+    SPECIES_LIST.find((species) => species.name.toLowerCase() === normalized)
+  );
+}
+
 export { SPECIES_LIST };

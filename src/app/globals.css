@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Battlefield: a dusk sky, not near-black — the ground the whole app sits on. */
+  --field: #0f2438;
+  --field-deep: #0a1826;
+
+  /* Dialogue box: the cream text panel every handheld Pokémon game uses for battle text/menus. */
+  --panel: #f7f3e8;
+  --panel-ink: #241f16;
+  --panel-muted: #cabf9e;
+
+  --ink: #eef1e8;
+  --ink-muted: #9fb0ad;
+
+  /* One structural accent for primary actions/focus — distinct from any type color. */
+  --gold: #d4a24c;
+  --gold-ink: #241f16;
+
+  --danger: #c0392b;
+  --success: #3f9142;
+
+  /* Official type colors — the app's real accent system, keyed by PokemonType. */
+  --type-normal: #a8a878;
+  --type-fire: #f08030;
+  --type-water: #6890f0;
+  --type-electric: #f8d030;
+  --type-grass: #78c850;
+  --type-ice: #98d8d8;
+  --type-fighting: #c03028;
+  --type-poison: #a040a0;
+  --type-ground: #e0c068;
+  --type-flying: #a890f0;
+  --type-psychic: #f85888;
+  --type-bug: #a8b820;
+  --type-rock: #b8a038;
+  --type-ghost: #705898;
+  --type-dragon: #7038f8;
+  --type-dark: #705848;
+  --type-steel: #b8b8d0;
+  --type-fairy: #ee99ac;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-field: var(--field);
+  --color-field-deep: var(--field-deep);
+  --color-panel: var(--panel);
+  --color-panel-ink: var(--panel-ink);
+  --color-panel-muted: var(--panel-muted);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-gold: var(--gold);
+  --color-gold-ink: var(--gold-ink);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+
+  --color-type-normal: var(--type-normal);
+  --color-type-fire: var(--type-fire);
+  --color-type-water: var(--type-water);
+  --color-type-electric: var(--type-electric);
+  --color-type-grass: var(--type-grass);
+  --color-type-ice: var(--type-ice);
+  --color-type-fighting: var(--type-fighting);
+  --color-type-poison: var(--type-poison);
+  --color-type-ground: var(--type-ground);
+  --color-type-flying: var(--type-flying);
+  --color-type-psychic: var(--type-psychic);
+  --color-type-bug: var(--type-bug);
+  --color-type-rock: var(--type-rock);
+  --color-type-ghost: var(--type-ghost);
+  --color-type-dragon: var(--type-dragon);
+  --color-type-dark: var(--type-dark);
+  --color-type-steel: var(--type-steel);
+  --color-type-fairy: var(--type-fairy);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-silkscreen);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--field);
+  color: var(--ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

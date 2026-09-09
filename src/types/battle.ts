@@ -83,6 +83,10 @@ export type BattlePhase =
 
 export type BattleSideId = "player" | "opponent";
 
+export function otherSide(side: BattleSideId): BattleSideId {
+  return side === "player" ? "opponent" : "player";
+}
+
 /** How many times each mechanic has been activated by this side so far this battle. */
 export type MechanicUsage = {
   mega: number;

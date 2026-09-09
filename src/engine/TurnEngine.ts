@@ -1,14 +1,15 @@
 import { getMove } from "@/data/moves";
-import type {
-  BattleAction,
-  BattleEvent,
-  BattleSideId,
-  BattleState,
-  Hazards,
-  HazardId,
-  MoveAction,
-  SecondaryDamageCause,
-  SwitchAction,
+import {
+  otherSide,
+  type BattleAction,
+  type BattleEvent,
+  type BattleSideId,
+  type BattleState,
+  type Hazards,
+  type HazardId,
+  type MoveAction,
+  type SecondaryDamageCause,
+  type SwitchAction,
 } from "@/types/battle";
 import type { Move } from "@/types/moves";
 import type { Pokemon, StatStages } from "@/types/pokemon";
@@ -42,8 +43,6 @@ import {
 import { setTerrain, setWeather } from "./WeatherEngine";
 import type { RNG } from "@/utils/rng";
 import { applyStatStage } from "@/utils/statCalculator";
-
-const OTHER_SIDE: Record<BattleSideId, BattleSideId> = { player: "opponent", opponent: "player" };
 
 type Mover = {
   side: BattleSideId;
@@ -232,7 +231,7 @@ export class TurnEngine {
   private executeMove(state: BattleState, mover: Mover): BattleEvent[] {
     const events: BattleEvent[] = [];
     const { side, pokemon: attacker, move } = mover;
-    const defenderSideId = OTHER_SIDE[side];
+    const defenderSideId = otherSide(side);
     const defenderSide = state.sides[defenderSideId];
     const defender = defenderSide.team[defenderSide.activePokemonIndex];
 

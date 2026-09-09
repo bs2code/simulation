@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "demo:battle": "tsx scripts/basic-battle-demo.ts"
+    "demo:battle": "tsx scripts/basic-battle-demo.ts",
+    "demo:battle6": "tsx scripts/full-battle-demo.ts"
   },
   "dependencies": {
     "next": "16.3.4",

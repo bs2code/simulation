@@ -69,7 +69,18 @@ export const ABILITY_LIST: Ability[] = [
       { kind: "weather-end-of-turn-damage", weather: "sun", fraction: 1 / 8 },
     ],
   },
+  {
+    id: "sand-rush",
+    name: "Sand Rush",
+    triggers: ["speed-calc"],
+    effects: [{ kind: "weather-stat-multiplier", weather: "sandstorm", stat: "speed", multiplier: 2 }],
+  },
   { id: "cursed-body", name: "Cursed Body", triggers: [], effects: [] },
   { id: "protean", name: "Protean", triggers: [], effects: [] },
   { id: "battle-bond", name: "Battle Bond", triggers: [], effects: [] },
+  { id: "steadfast", name: "Steadfast", triggers: [], effects: [] },
+  { id: "inner-focus", name: "Inner Focus", triggers: [], effects: [] },
+  { id: "sharpness", name: "Sharpness", triggers: [], effects: [] },
+  { id: "tough-claws", name: "Tough Claws", triggers: [], effects: [] },
+  { id: "drought", name: "Drought", triggers: [], effects: [] },
 ];

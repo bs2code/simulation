@@ -1,5 +1,6 @@
 import type { BattleMechanic } from "./mechanics";
 import type { NonVolatileStatus, Pokemon, StatStages } from "./pokemon";
+import type { BattleRules } from "./rules";
 
 export type WeatherId = "none" | "sun" | "rain" | "sandstorm" | "hail" | "snow";
 export type TerrainId = "none" | "electric" | "grassy" | "misty" | "psychic";
@@ -82,11 +83,23 @@ export type BattlePhase =
 
 export type BattleSideId = "player" | "opponent";
 
+/** How many times each mechanic has been activated by this side so far this battle. */
+export type MechanicUsage = {
+  mega: number;
+  zMove: number;
+  gigantamax: number;
+};
+
+export function createDefaultMechanicUsage(): MechanicUsage {
+  return { mega: 0, zMove: 0, gigantamax: 0 };
+}
+
 export type BattleSide = {
   team: Pokemon[];
   activePokemonIndex: number;
   hazards: Hazards;
   sideEffects: SideEffect[];
+  mechanicUsage: MechanicUsage;
 };
 
 export function createBattleSide(team: Pokemon[]): BattleSide {
@@ -95,6 +108,7 @@ export function createBattleSide(team: Pokemon[]): BattleSide {
     activePokemonIndex: 0,
     hazards: createDefaultHazards(),
     sideEffects: [],
+    mechanicUsage: createDefaultMechanicUsage(),
   };
 }
 
@@ -103,6 +117,7 @@ export type BattleState = {
   phase: BattlePhase;
   weather: WeatherState;
   terrain: TerrainState;
+  rules: BattleRules;
   sides: {
     player: BattleSide;
     opponent: BattleSide;
@@ -120,7 +135,7 @@ export type MoveAction = {
   type: "move";
   pokemonId: string;
   moveId: string;
-  /** Not acted on until the Phase 4 MechanicsEngine exists. */
+  /** Activates this mechanic (if legal) before the move executes this turn. */
   mechanic?: BattleMechanic;
 };
 
@@ -203,6 +218,15 @@ export type BattleEvent =
   | { type: "weather-changed"; weather: WeatherId }
   | { type: "terrain-changed"; terrain: TerrainId }
   | { type: "hazard-set"; side: BattleSideId; hazard: HazardId }
+  | {
+      type: "form-change";
+      side: BattleSideId;
+      pokemonId: string;
+      /** The new form id, or undefined when reverting to the base form. */
+      form?: string;
+      cause: Exclude<BattleMechanic, "z-move"> | "revert";
+    }
+  | { type: "z-move-used"; side: BattleSideId; pokemonId: string; moveId: string }
   | { type: "switch-out"; side: BattleSideId; pokemonId: string }
   | { type: "switch-in"; side: BattleSideId; pokemonId: string }
   | { type: "turn-end"; turn: number }

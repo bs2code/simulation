@@ -6,6 +6,7 @@ import {
   type BattleState,
 } from "@/types/battle";
 import type { Pokemon } from "@/types/pokemon";
+import { STANDARD_RULES, type BattleRules } from "@/types/rules";
 import type { RNG } from "@/utils/rng";
 import { DamageEngine } from "./DamageEngine";
 import { getSidesNeedingForcedSwitch } from "./SwitchEngine";
@@ -23,7 +24,7 @@ export class BattleEngine {
     this.turnEngine = new TurnEngine(damageEngine, rng);
   }
 
-  createBattle(playerTeam: Pokemon[], opponentTeam: Pokemon[]): BattleState {
+  createBattle(playerTeam: Pokemon[], opponentTeam: Pokemon[], rules: BattleRules = STANDARD_RULES): BattleState {
     if (playerTeam.length === 0 || opponentTeam.length === 0) {
       throw new Error("Both teams must have at least one Pokémon");
     }
@@ -32,6 +33,7 @@ export class BattleEngine {
       phase: "choosing",
       weather: { id: "none", turnsRemaining: 0 },
       terrain: { id: "none", turnsRemaining: 0 },
+      rules,
       sides: {
         player: createBattleSide(playerTeam),
         opponent: createBattleSide(opponentTeam),

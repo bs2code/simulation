@@ -35,4 +35,12 @@ export const ITEM_LIST: Item[] = [
     triggers: ["on-lethal-damage"],
     effects: [{ kind: "survive-lethal-hit" }],
   },
+  // Mega Stones and Z-Crystals aren't consumed and don't hook into ItemEngine's damage/heal
+  // triggers at all — MechanicsEngine checks a Pokémon's held item id directly against the
+  // form's `requiredItem` (Mega Stones) or as a general Z-Move unlock marker (Z-Crystal).
+  { id: "charizardite-x", name: "Charizardite X", triggers: [], effects: [] },
+  { id: "charizardite-y", name: "Charizardite Y", triggers: [], effects: [] },
+  { id: "lucarionite", name: "Lucarionite", triggers: [], effects: [] },
+  { id: "galladite", name: "Galladite", triggers: [], effects: [] },
+  { id: "z-crystal", name: "Z-Crystal", triggers: [], effects: [] },
 ];

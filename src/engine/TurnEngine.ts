@@ -25,6 +25,14 @@ import {
 } from "./EffectEngine";
 import { getItemRecoilAfterAttackFraction, hasSurviveLethalHit } from "./ItemEngine";
 import {
+  activateMechanic,
+  activateZMove,
+  canActivateMechanic,
+  getZMoveVariant,
+  tickMechanicDurations,
+  tryAutoActivateBattleBond,
+} from "./MechanicsEngine";
+import {
   findTeamIndexByPokemonId,
   getSidesNeedingForcedSwitch,
   hasSideLost,
@@ -78,6 +86,11 @@ export class TurnEngine {
       }
     }
 
+    // Mega Evolution/Gigantamax/Battle Bond activate before speed is locked in for the turn
+    // (a Mega Evolution's new Speed stat applies to this turn's move order); Z-Moves don't
+    // affect ordering but are activated here too for consistency.
+    events.push(...this.activateMechanics(next, playerAction, opponentAction));
+
     const movers = this.buildMoveOrder(
       next,
       playerAction.type === "move" ? playerAction : undefined,
@@ -89,6 +102,7 @@ export class TurnEngine {
     }
 
     events.push(...processEndOfTurn(next));
+    events.push(...tickMechanicDurations(next));
     events.push({ type: "turn-end", turn: next.turn });
     next.log.push(...events);
     return this.finalize(next);
@@ -138,10 +152,37 @@ export class TurnEngine {
       if (battleMove.currentPP <= 0) {
         throw new Error(`"${active.id}" has no PP left for "${action.moveId}"`);
       }
+      if (action.mechanic) {
+        const check = canActivateMechanic(active, side, action.mechanic, state.rules);
+        if (!check.ok) {
+          throw new Error(`Cannot activate ${action.mechanic} for "${active.id}": ${check.reason}`);
+        }
+      }
       return;
     }
 
-    throw new Error(`Mechanic actions are not supported until Phase 4 ("${sideId}")`);
+    throw new Error(`Standalone mechanic actions aren't supported — activate via MoveAction.mechanic ("${sideId}")`);
+  }
+
+  /** Activates any mechanic (mega/gigantamax/battle-bond/z-move) chosen for this turn's move actions. */
+  private activateMechanics(state: BattleState, playerAction: BattleAction, opponentAction: BattleAction): BattleEvent[] {
+    const events: BattleEvent[] = [];
+    for (const [sideId, action] of [
+      ["player", playerAction],
+      ["opponent", opponentAction],
+    ] as const) {
+      if (action.type !== "move" || !action.mechanic) continue;
+      const side = state.sides[sideId];
+      const pokemon = side.team[side.activePokemonIndex];
+
+      if (action.mechanic === "z-move") {
+        activateZMove(pokemon, side);
+        events.push({ type: "z-move-used", side: sideId, pokemonId: pokemon.id, moveId: action.moveId });
+      } else {
+        events.push(activateMechanic(pokemon, side, sideId, action.mechanic));
+      }
+    }
+    return events;
   }
 
   private executeSwitch(state: BattleState, sideId: BattleSideId, action: SwitchAction): BattleEvent[] {
@@ -158,14 +199,19 @@ export class TurnEngine {
     playerAction: MoveAction | undefined,
     opponentAction: MoveAction | undefined
   ): Mover[] {
+    const resolveMove = (action: MoveAction): Move => {
+      const base = getMove(action.moveId);
+      return action.mechanic === "z-move" ? getZMoveVariant(base) : base;
+    };
+
     const movers: Mover[] = [];
     if (playerAction) {
       const pokemon = state.sides.player.team[state.sides.player.activePokemonIndex];
-      movers.push({ side: "player", pokemon, move: getMove(playerAction.moveId) });
+      movers.push({ side: "player", pokemon, move: resolveMove(playerAction) });
     }
     if (opponentAction) {
       const pokemon = state.sides.opponent.team[state.sides.opponent.activePokemonIndex];
-      movers.push({ side: "opponent", pokemon, move: getMove(opponentAction.moveId) });
+      movers.push({ side: "opponent", pokemon, move: resolveMove(opponentAction) });
     }
 
     const effectiveSpeed = (pokemon: Pokemon): number => {
@@ -239,6 +285,8 @@ export class TurnEngine {
       if (defender.currentHp === 0) {
         defender.fainted = true;
         events.push({ type: "fainted", side: defenderSideId, pokemonId: defender.id });
+        const battleBondEvent = tryAutoActivateBattleBond(attacker, state.sides[side], side, state.rules);
+        if (battleBondEvent) events.push(battleBondEvent);
       }
 
       if (move.flags.contact) {

@@ -8,6 +8,7 @@ import {
   sideNeedsForcedSwitch,
 } from "../SwitchEngine";
 import { createBattleSide } from "@/types/battle";
+import { STANDARD_RULES } from "@/types/rules";
 import { buildPokemon } from "./testHelpers";
 
 describe("SwitchEngine", () => {
@@ -99,6 +100,7 @@ describe("SwitchEngine", () => {
       phase: "switching" as const,
       weather: { id: "none" as const, turnsRemaining: 0 },
       terrain: { id: "none" as const, turnsRemaining: 0 },
+      rules: STANDARD_RULES,
       sides: { player, opponent },
       field: { activeEffects: [] },
       log: [],

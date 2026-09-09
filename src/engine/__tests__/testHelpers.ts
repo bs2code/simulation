@@ -2,12 +2,13 @@ import { getSpecies } from "@/data/pokemon";
 import { createPokemon } from "@/utils/createPokemon";
 import type { Pokemon } from "@/types/pokemon";
 
-/** Not a test file itself — shared fixtures for the Phase 2 TurnEngine/SwitchEngine/BattleEngine suites. */
+/** Not a test file itself — shared fixtures for the engine test suites. */
 export function buildPokemon(
   id: string,
   speciesId: string,
   moveIds: string[],
-  level = 50
+  level = 50,
+  options: { ability?: string; item?: string } = {}
 ): Pokemon {
   const species = getSpecies(speciesId);
   return createPokemon({
@@ -15,7 +16,8 @@ export function buildPokemon(
     speciesId,
     level,
     nature: "Hardy",
-    ability: species.abilities[0],
+    ability: options.ability ?? species.abilities[0],
+    item: options.item,
     moveIds,
   });
 }

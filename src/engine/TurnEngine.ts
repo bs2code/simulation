@@ -4,12 +4,26 @@ import type {
   BattleEvent,
   BattleSideId,
   BattleState,
+  Hazards,
+  HazardId,
   MoveAction,
+  SecondaryDamageCause,
   SwitchAction,
 } from "@/types/battle";
 import type { Move } from "@/types/moves";
 import type { Pokemon, StatStages } from "@/types/pokemon";
+import { getWeatherStatMultiplier, getContactStatusChances } from "./AbilityEngine";
 import type { DamageEngine } from "./DamageEngine";
+import {
+  addConfusion,
+  addVolatileStatus,
+  applyHazardsOnSwitchIn,
+  applyHeal,
+  applyStatus,
+  checkCanAct,
+  processEndOfTurn,
+} from "./EffectEngine";
+import { getItemRecoilAfterAttackFraction, hasSurviveLethalHit } from "./ItemEngine";
 import {
   findTeamIndexByPokemonId,
   getSidesNeedingForcedSwitch,
@@ -17,6 +31,7 @@ import {
   isValidSwitchTarget,
   performSwitch,
 } from "./SwitchEngine";
+import { setTerrain, setWeather } from "./WeatherEngine";
 import type { RNG } from "@/utils/rng";
 import { applyStatStage } from "@/utils/statCalculator";
 
@@ -30,9 +45,10 @@ type Mover = {
 
 /**
  * Resolves one full turn: validates both sides' chosen actions, performs any switches,
- * orders and executes move actions, applies fainting, and figures out whether the battle
- * ended or a forced switch is now required. Always returns a new BattleState — the input
- * state (and the Pokémon/side objects inside it) is never mutated.
+ * orders and executes move actions (including status checks, secondary effects, weather/
+ * terrain/hazards, and ability/item hooks), runs end-of-turn effects, applies fainting, and
+ * figures out whether the battle ended or a forced switch is now required. Always returns a
+ * new BattleState — the input state (and the Pokémon/side objects inside it) is never mutated.
  */
 export class TurnEngine {
   constructor(
@@ -72,6 +88,7 @@ export class TurnEngine {
       events.push(...this.executeMove(next, mover));
     }
 
+    events.push(...processEndOfTurn(next));
     events.push({ type: "turn-end", turn: next.turn });
     next.log.push(...events);
     return this.finalize(next);
@@ -130,7 +147,10 @@ export class TurnEngine {
   private executeSwitch(state: BattleState, sideId: BattleSideId, action: SwitchAction): BattleEvent[] {
     const side = state.sides[sideId];
     const targetIndex = findTeamIndexByPokemonId(side, action.pokemonId);
-    return performSwitch(side, sideId, targetIndex);
+    const events = performSwitch(side, sideId, targetIndex);
+    const incoming = side.team[targetIndex];
+    events.push(...applyHazardsOnSwitchIn(side, sideId, incoming, this.rng));
+    return events;
   }
 
   private buildMoveOrder(
@@ -148,8 +168,12 @@ export class TurnEngine {
       movers.push({ side: "opponent", pokemon, move: getMove(opponentAction.moveId) });
     }
 
-    const effectiveSpeed = (pokemon: Pokemon): number =>
-      applyStatStage(pokemon.stats.speed, pokemon.statStages.speed);
+    const effectiveSpeed = (pokemon: Pokemon): number => {
+      let speed = applyStatStage(pokemon.stats.speed, pokemon.statStages.speed);
+      speed = Math.floor(speed * getWeatherStatMultiplier(pokemon, state.weather.id, "speed"));
+      if (pokemon.status.condition === "paralysis") speed = Math.floor(speed * 0.5);
+      return speed;
+    };
 
     return movers.sort((a, b) => {
       if (a.move.priority !== b.move.priority) return b.move.priority - a.move.priority;
@@ -168,6 +192,10 @@ export class TurnEngine {
 
     if (attacker.fainted) return events;
 
+    const gate = checkCanAct(attacker, side, this.rng);
+    events.push(...gate.events);
+    if (!gate.canAct) return events;
+
     const battleMove = attacker.moves.find((m) => m.moveId === move.id);
     if (battleMove) battleMove.currentPP = Math.max(0, battleMove.currentPP - 1);
 
@@ -180,12 +208,25 @@ export class TurnEngine {
       return events;
     }
 
+    let damageDealt = 0;
+
     if (move.category !== "status" && move.power) {
       const result = this.damageEngine.calculateDamage(attacker, defender, move, {
         weather: state.weather.id,
         terrain: state.terrain.id,
       });
-      defender.currentHp = Math.max(0, defender.currentHp - result.damage);
+      damageDealt = result.damage;
+      const hpBeforeHit = defender.currentHp;
+      let newHp = Math.max(0, defender.currentHp - result.damage);
+
+      if (newHp === 0 && hpBeforeHit === defender.stats.hp && hasSurviveLethalHit(defender)) {
+        newHp = 1;
+        const consumedItemId = defender.item!;
+        defender.item = undefined;
+        events.push({ type: "item-consumed", side: defenderSideId, pokemonId: defender.id, itemId: consumedItemId });
+      }
+
+      defender.currentHp = newHp;
       events.push({
         type: "damage",
         side: defenderSideId,
@@ -194,48 +235,157 @@ export class TurnEngine {
         remainingHp: defender.currentHp,
         result,
       });
+
       if (defender.currentHp === 0) {
         defender.fainted = true;
         events.push({ type: "fainted", side: defenderSideId, pokemonId: defender.id });
       }
+
+      if (move.flags.contact) {
+        for (const { status, chance } of getContactStatusChances(defender)) {
+          if (this.rng.chance(chance / 100) && applyStatus(attacker, status, state.terrain.id, this.rng)) {
+            events.push({ type: "status-applied", side, pokemonId: attacker.id, status });
+          }
+        }
+      }
+
+      const itemRecoilFraction = getItemRecoilAfterAttackFraction(attacker);
+      if (itemRecoilFraction > 0) {
+        this.applyRawDamage(attacker, side, events, Math.max(1, Math.floor(attacker.stats.hp * itemRecoilFraction)), "life-orb");
+      }
     }
 
-    events.push(...this.applyStatChangeEffects(state, mover, defender, defenderSideId));
+    events.push(...this.applyMoveEffects(state, mover, defender, defenderSideId, damageDealt));
     return events;
   }
 
-  private applyStatChangeEffects(
+  private applyMoveEffects(
     state: BattleState,
     mover: Mover,
     defender: Pokemon,
-    defenderSideId: BattleSideId
+    defenderSideId: BattleSideId,
+    damageDealt: number
   ): BattleEvent[] {
     const events: BattleEvent[] = [];
+
     for (const effect of mover.move.effects) {
-      if (effect.kind !== "stat-change") continue;
-      const chance = effect.chance ?? 100;
+      const chance = "chance" in effect ? (effect.chance ?? 100) : 100;
       if (!this.rng.chance(chance / 100)) continue;
 
-      const isSelf = effect.target === "self";
-      const target = isSelf ? mover.pokemon : defender;
-      const targetSide = isSelf ? mover.side : defenderSideId;
-      if (!isSelf && target.fainted) continue;
+      switch (effect.kind) {
+        case "stat-change": {
+          const isSelf = effect.target === "self";
+          const target = isSelf ? mover.pokemon : defender;
+          const targetSide = isSelf ? mover.side : defenderSideId;
+          if (!isSelf && target.fainted) break;
 
-      const stat = effect.stat as keyof StatStages;
-      const currentStage = target.statStages[stat];
-      const newStage = Math.max(-6, Math.min(6, currentStage + effect.stages));
-      target.statStages[stat] = newStage;
+          const stat = effect.stat as keyof StatStages;
+          const newStage = Math.max(-6, Math.min(6, target.statStages[stat] + effect.stages));
+          target.statStages[stat] = newStage;
+          events.push({ type: "stat-change", side: targetSide, pokemonId: target.id, stat, stages: effect.stages, newStage });
+          break;
+        }
 
-      events.push({
-        type: "stat-change",
-        side: targetSide,
-        pokemonId: target.id,
-        stat,
-        stages: effect.stages,
-        newStage,
-      });
+        case "status": {
+          const isSelf = effect.target === "self";
+          const target = isSelf ? mover.pokemon : defender;
+          const targetSide = isSelf ? mover.side : defenderSideId;
+          if (!isSelf && target.fainted) break;
+          if (applyStatus(target, effect.status, state.terrain.id, this.rng)) {
+            events.push({ type: "status-applied", side: targetSide, pokemonId: target.id, status: effect.status });
+          }
+          break;
+        }
+
+        case "flinch": {
+          if (!defender.fainted) addVolatileStatus(defender, "flinch");
+          break;
+        }
+
+        case "volatile": {
+          if (effect.volatile === "confusion") {
+            const isSelf = effect.target === "self";
+            const target = isSelf ? mover.pokemon : defender;
+            if (!isSelf && target.fainted) break;
+            addConfusion(target, this.rng);
+          }
+          break;
+        }
+
+        case "heal": {
+          const isSelf = effect.target === "self";
+          const target = isSelf ? mover.pokemon : defender;
+          const targetSide = isSelf ? mover.side : defenderSideId;
+          if (!isSelf && target.fainted) break;
+          applyHeal(target, targetSide, events, effect.fraction, "move");
+          break;
+        }
+
+        case "recoil": {
+          if (damageDealt > 0 && !mover.pokemon.fainted) {
+            const amount = Math.max(1, Math.floor(damageDealt * effect.fraction));
+            this.applyRawDamage(mover.pokemon, mover.side, events, amount, "recoil");
+          }
+          break;
+        }
+
+        case "weather": {
+          events.push(setWeather(state, effect.weather, effect.turns));
+          break;
+        }
+
+        case "terrain": {
+          events.push(setTerrain(state, effect.terrain, effect.turns));
+          break;
+        }
+
+        case "hazard": {
+          const targetSide = effect.target === "opponent-side" ? defenderSideId : mover.side;
+          events.push(...this.applyHazardEffect(state.sides[targetSide].hazards, targetSide, effect.hazard));
+          break;
+        }
+
+        case "multi-hit":
+          // Multi-hit resolution isn't implemented yet; such moves currently hit once.
+          break;
+      }
     }
+
     return events;
+  }
+
+  private applyHazardEffect(hazards: Hazards, side: BattleSideId, hazard: HazardId): BattleEvent[] {
+    switch (hazard) {
+      case "stealth-rock":
+        hazards.stealthRock = true;
+        break;
+      case "spikes":
+        hazards.spikes = Math.min(3, hazards.spikes + 1);
+        break;
+      case "toxic-spikes":
+        hazards.toxicSpikes = Math.min(2, hazards.toxicSpikes + 1);
+        break;
+      case "sticky-web":
+        hazards.stickyWeb = true;
+        break;
+    }
+    return [{ type: "hazard-set", side, hazard }];
+  }
+
+  private applyRawDamage(
+    pokemon: Pokemon,
+    side: BattleSideId,
+    events: BattleEvent[],
+    amount: number,
+    cause: SecondaryDamageCause
+  ): void {
+    if (pokemon.fainted) return;
+    pokemon.currentHp = Math.max(0, pokemon.currentHp - amount);
+    events.push({ type: "secondary-damage", side, pokemonId: pokemon.id, amount, remainingHp: pokemon.currentHp, cause });
+    if (pokemon.currentHp === 0) {
+      pokemon.fainted = true;
+      events.push({ type: "fainted", side, pokemonId: pokemon.id });
+    }
   }
 
   /** Shared end-of-action bookkeeping: battle-end detection, forced-switch detection, phase/turn transition. */

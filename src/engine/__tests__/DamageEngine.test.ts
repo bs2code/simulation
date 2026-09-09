@@ -10,7 +10,7 @@ function makeCharizard(moveIds: string[] = ["ember", "flamethrower", "swords-dan
     speciesId: "charizard",
     level: 50,
     nature: "Hardy",
-    ability: "Blaze",
+    ability: "blaze",
     moveIds,
   });
 }
@@ -21,7 +21,7 @@ function makeBlastoise(moveIds: string[] = ["water-gun", "hydro-pump", "tackle"]
     speciesId: "blastoise",
     level: 50,
     nature: "Hardy",
-    ability: "Torrent",
+    ability: "torrent",
     moveIds,
   });
 }
@@ -32,7 +32,7 @@ function makePikachu(moveIds: string[] = ["tackle", "thunderbolt"]) {
     speciesId: "pikachu",
     level: 50,
     nature: "Hardy",
-    ability: "Static",
+    ability: "static",
     moveIds,
   });
 }
@@ -43,7 +43,7 @@ function makeGengar(moveIds: string[] = ["shadow-ball", "will-o-wisp"]) {
     speciesId: "gengar",
     level: 50,
     nature: "Hardy",
-    ability: "Levitate",
+    ability: "levitate",
     moveIds,
   });
 }
@@ -228,5 +228,152 @@ describe("DamageEngine.checkHit", () => {
       if (!engine.checkHit(charizard, blastoise, getMove("ember"))) misses++;
     }
     expect(misses).toBeGreaterThan(0);
+  });
+});
+
+describe("DamageEngine ability/item/status integration", () => {
+  it("halves physical damage when the attacker is burned", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charizard = makeCharizard(["dragon-claw"]); // physical, no ability interference
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const healthy = engine.calculateDamage(charizard, blastoise, getMove("dragon-claw"), context);
+    charizard.status = { condition: "burn" };
+    const burned = engine.calculateDamage(charizard, blastoise, getMove("dragon-claw"), context);
+
+    expect(burned.damage).toBeLessThan(healthy.damage);
+  });
+
+  it("burn does not affect special move damage", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charizard = makeCharizard();
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const healthy = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+    charizard.status = { condition: "burn" };
+    const burned = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+
+    expect(burned.damage).toBe(healthy.damage);
+  });
+
+  it("Blaze boosts Fire-type damage once the holder is at or below 1/3 HP", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charizard = makeCharizard(); // ability: blaze
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const fullHp = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+    charizard.currentHp = Math.floor(charizard.stats.hp / 3);
+    const lowHp = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+
+    expect(lowHp.damage).toBeGreaterThan(fullHp.damage);
+  });
+
+  it("Levitate grants immunity to Ground-type moves even though the type chart alone wouldn't", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const attacker = makeBlastoise(); // arbitrary attacker
+    const gengarNoLevitate = createPokemon({
+      id: "gengar-no-levitate",
+      speciesId: "gengar",
+      level: 50,
+      nature: "Hardy",
+      ability: "cursed-body",
+      moveIds: ["shadow-ball"],
+    });
+    const gengarLevitate = createPokemon({
+      id: "gengar-levitate",
+      speciesId: "gengar",
+      level: 50,
+      nature: "Hardy",
+      ability: "levitate",
+      moveIds: ["shadow-ball"],
+    });
+
+    // Gengar (Ghost/Poison) has no type-chart immunity or resistance to Ground.
+    const withoutLevitate = engine.calculateDamage(attacker, gengarNoLevitate, getMove("earthquake"));
+    expect(withoutLevitate.immune).toBe(false);
+
+    const withLevitate = engine.calculateDamage(attacker, gengarLevitate, getMove("earthquake"));
+    expect(withLevitate.immune).toBe(true);
+    expect(withLevitate.damage).toBe(0);
+  });
+
+  it("Solar Power boosts special attack in sun", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charizard = createPokemon({
+      id: "charizard-sp",
+      speciesId: "charizard",
+      level: 50,
+      nature: "Hardy",
+      ability: "solar-power",
+      moveIds: ["ember"],
+    });
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const noSun = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+    const sun = engine.calculateDamage(charizard, blastoise, getMove("ember"), { ...context, weather: "sun" });
+
+    expect(sun.damage).toBeGreaterThan(noSun.damage);
+  });
+
+  it("Life Orb increases damage dealt", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charizard = createPokemon({
+      id: "charizard-lo",
+      speciesId: "charizard",
+      level: 50,
+      nature: "Hardy",
+      ability: "blaze",
+      item: "life-orb",
+      moveIds: ["ember"],
+    });
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const withoutItem = engine.calculateDamage(makeCharizard(), blastoise, getMove("ember"), context);
+    const withLifeOrb = engine.calculateDamage(charizard, blastoise, getMove("ember"), context);
+
+    expect(withLifeOrb.damage).toBeGreaterThan(withoutItem.damage);
+  });
+
+  it("a type-boosting item increases damage of matching-type moves only", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const charcoalCharizard = createPokemon({
+      id: "charizard-charcoal",
+      speciesId: "charizard",
+      level: 50,
+      nature: "Hardy",
+      ability: "blaze",
+      item: "charcoal",
+      moveIds: ["ember", "aerial-ace"],
+    });
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const fireMove = engine.calculateDamage(charcoalCharizard, blastoise, getMove("ember"), context);
+    const fireMoveNoItem = engine.calculateDamage(makeCharizard(), blastoise, getMove("ember"), context);
+    expect(fireMove.damage).toBeGreaterThan(fireMoveNoItem.damage);
+
+    const flyingMove = engine.calculateDamage(charcoalCharizard, blastoise, getMove("aerial-ace"), context);
+    const flyingMoveNoItem = engine.calculateDamage(makeCharizard(), blastoise, getMove("aerial-ace"), context);
+    expect(flyingMove.damage).toBe(flyingMoveNoItem.damage);
+  });
+
+  it("terrain boosts matching-type moves", () => {
+    const engine = new DamageEngine(new SeededRNG(1));
+    const pikachu = makePikachu();
+    const blastoise = makeBlastoise();
+    const context = { forceCritical: false, forceRandomRoll: 100 };
+
+    const noTerrain = engine.calculateDamage(pikachu, blastoise, getMove("thunderbolt"), context);
+    const electricTerrain = engine.calculateDamage(pikachu, blastoise, getMove("thunderbolt"), {
+      ...context,
+      terrain: "electric",
+    });
+
+    expect(electricTerrain.damage).toBeGreaterThan(noTerrain.damage);
   });
 });

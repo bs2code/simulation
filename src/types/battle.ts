@@ -1,5 +1,5 @@
 import type { BattleMechanic } from "./mechanics";
-import type { Pokemon, StatStages } from "./pokemon";
+import type { NonVolatileStatus, Pokemon, StatStages } from "./pokemon";
 
 export type WeatherId = "none" | "sun" | "rain" | "sandstorm" | "hail" | "snow";
 export type TerrainId = "none" | "electric" | "grassy" | "misty" | "psychic";
@@ -32,10 +32,7 @@ export type DamageResult = {
 };
 
 // ---------------------------------------------------------------------------
-// Phase 2: BattleState, sides, actions, phases, and events.
-// Weather/terrain/hazards/side-effects are structurally present (BattleState needs
-// somewhere to hold them) but inert until the Phase 3 WeatherEngine/EffectEngine exist —
-// TurnEngine initializes them to "none"/empty and never mutates them yet.
+// BattleState, sides, actions, phases, and events.
 // ---------------------------------------------------------------------------
 
 export type WeatherState = {
@@ -48,7 +45,7 @@ export type TerrainState = {
   turnsRemaining: number;
 };
 
-/** Entry hazards laid on one side of the field (Stealth Rock, Spikes, etc). Inert until Phase 3. */
+/** Entry hazards laid on one side of the field (Stealth Rock, Spikes, etc). */
 export type Hazards = {
   stealthRock: boolean;
   spikes: number;
@@ -60,13 +57,13 @@ export function createDefaultHazards(): Hazards {
   return { stealthRock: false, spikes: 0, toxicSpikes: 0, stickyWeb: false };
 }
 
-/** A timed side-wide effect such as Reflect, Light Screen, or Tailwind. Inert until Phase 3. */
+/** A timed side-wide effect such as Reflect, Light Screen, or Tailwind. Reserved for a later phase. */
 export type SideEffect = {
   id: string;
   turnsRemaining: number;
 };
 
-/** Field-wide effects such as Trick Room or Gravity that aren't tied to either side. Inert until Phase 3. */
+/** Field-wide effects such as Trick Room or Gravity that aren't tied to either side. Reserved for a later phase. */
 export type FieldState = {
   activeEffects: { id: string; turnsRemaining: number }[];
 };
@@ -146,10 +143,34 @@ export type BattleAction = MoveAction | SwitchAction | MechanicAction;
 // Events — the log is meant to be replayable: enough detail here to reconstruct what happened.
 // ---------------------------------------------------------------------------
 
+/** Why a Pokémon couldn't act this turn despite choosing a move. */
+export type MovePreventedReason = "sleep" | "frozen" | "paralysis" | "flinch" | "confusion";
+
+/** What caused HP loss outside of a direct move hit. */
+export type SecondaryDamageCause =
+  | "burn"
+  | "poison"
+  | "badly-poisoned"
+  | "sandstorm"
+  | "hail"
+  | "solar-power"
+  | "life-orb"
+  | "recoil"
+  | "confusion"
+  | "stealth-rock"
+  | "spikes"
+  | "toxic-spikes";
+
+/** What caused a heal outside of a direct move effect. */
+export type HealCause = "leftovers" | "rain-dish" | "grassy-terrain" | "move";
+
+export type HazardId = "stealth-rock" | "spikes" | "toxic-spikes" | "sticky-web";
+
 export type BattleEvent =
   | { type: "turn-start"; turn: number }
   | { type: "move-used"; side: BattleSideId; pokemonId: string; moveId: string }
   | { type: "move-missed"; side: BattleSideId; pokemonId: string; moveId: string }
+  | { type: "move-prevented"; side: BattleSideId; pokemonId: string; reason: MovePreventedReason }
   | {
       type: "damage";
       side: BattleSideId;
@@ -167,6 +188,21 @@ export type BattleEvent =
       stages: number;
       newStage: number;
     }
+  | { type: "status-applied"; side: BattleSideId; pokemonId: string; status: NonVolatileStatus }
+  | { type: "status-cured"; side: BattleSideId; pokemonId: string; status: NonVolatileStatus }
+  | {
+      type: "secondary-damage";
+      side: BattleSideId;
+      pokemonId: string;
+      amount: number;
+      remainingHp: number;
+      cause: SecondaryDamageCause;
+    }
+  | { type: "heal"; side: BattleSideId; pokemonId: string; amount: number; remainingHp: number; cause: HealCause }
+  | { type: "item-consumed"; side: BattleSideId; pokemonId: string; itemId: string }
+  | { type: "weather-changed"; weather: WeatherId }
+  | { type: "terrain-changed"; terrain: TerrainId }
+  | { type: "hazard-set"; side: BattleSideId; hazard: HazardId }
   | { type: "switch-out"; side: BattleSideId; pokemonId: string }
   | { type: "switch-in"; side: BattleSideId; pokemonId: string }
   | { type: "turn-end"; turn: number }

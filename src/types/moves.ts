@@ -80,6 +80,18 @@ export type WeatherEffect = {
   turns?: number;
 };
 
+export type TerrainEffect = {
+  kind: "terrain";
+  terrain: "electric" | "grassy" | "misty" | "psychic";
+  turns?: number;
+};
+
+export type HazardEffect = {
+  kind: "hazard";
+  target: "opponent-side" | "self-side";
+  hazard: "stealth-rock" | "spikes" | "toxic-spikes" | "sticky-web";
+};
+
 /**
  * Data-driven move effects. The engine dispatches on `kind` rather than branching on move id,
  * so new move behaviors are added by composing effects, not by editing engine code.
@@ -92,7 +104,9 @@ export type MoveEffect =
   | HealEffect
   | RecoilEffect
   | MultiHitEffect
-  | WeatherEffect;
+  | WeatherEffect
+  | TerrainEffect
+  | HazardEffect;
 
 /** Species-independent move definition, keyed by id. */
 export type Move = {

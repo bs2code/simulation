@@ -44,6 +44,9 @@ import { setTerrain, setWeather } from "./WeatherEngine";
 import type { RNG } from "@/utils/rng";
 import { applyStatStage } from "@/utils/statCalculator";
 
+/** Struggle isn't a learned move — it's only legal when every real move is out of PP. */
+const STRUGGLE_MOVE_ID = "struggle";
+
 type Mover = {
   side: BattleSideId;
   pokemon: Pokemon;
@@ -144,12 +147,19 @@ export class TurnEngine {
           `Side "${sideId}" submitted a move for "${action.pokemonId}" but the active Pokémon is "${active.id}"`
         );
       }
-      const battleMove = active.moves.find((m) => m.moveId === action.moveId);
-      if (!battleMove) {
-        throw new Error(`"${active.id}" does not know move "${action.moveId}"`);
-      }
-      if (battleMove.currentPP <= 0) {
-        throw new Error(`"${active.id}" has no PP left for "${action.moveId}"`);
+      if (action.moveId === STRUGGLE_MOVE_ID) {
+        const allOutOfPP = active.moves.every((m) => m.currentPP <= 0);
+        if (!allOutOfPP) {
+          throw new Error(`"${active.id}" cannot use Struggle while it still has a usable move`);
+        }
+      } else {
+        const battleMove = active.moves.find((m) => m.moveId === action.moveId);
+        if (!battleMove) {
+          throw new Error(`"${active.id}" does not know move "${action.moveId}"`);
+        }
+        if (battleMove.currentPP <= 0) {
+          throw new Error(`"${active.id}" has no PP left for "${action.moveId}"`);
+        }
       }
       if (action.mechanic) {
         const check = canActivateMechanic(active, side, action.mechanic, state.rules);
@@ -369,7 +379,11 @@ export class TurnEngine {
         }
 
         case "recoil": {
-          if (damageDealt > 0 && !mover.pokemon.fainted) {
+          if (mover.pokemon.fainted) break;
+          if (effect.basis === "max-hp") {
+            const amount = Math.max(1, Math.floor(mover.pokemon.stats.hp * effect.fraction));
+            this.applyRawDamage(mover.pokemon, mover.side, events, amount, "recoil");
+          } else if (damageDealt > 0) {
             const amount = Math.max(1, Math.floor(damageDealt * effect.fraction));
             this.applyRawDamage(mover.pokemon, mover.side, events, amount, "recoil");
           }

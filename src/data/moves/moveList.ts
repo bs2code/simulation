@@ -454,4 +454,18 @@ export const MOVE_LIST: Move[] = [
     effects: [{ kind: "hazard", target: "opponent-side", hazard: "sticky-web" }],
     flags: {},
   },
+  {
+    id: "struggle",
+    name: "Struggle",
+    type: "Normal",
+    category: "physical",
+    power: 50,
+    priority: 0,
+    maxPP: 1,
+    target: "single-opponent",
+    // Not a real learned move — TurnEngine allows submitting it only when every real move is
+    // out of PP, and doesn't deduct PP for it (there's no BattleMove entry to deduct from).
+    effects: [{ kind: "recoil", fraction: 0.25, basis: "max-hp" }],
+    flags: { contact: true },
+  },
 ];

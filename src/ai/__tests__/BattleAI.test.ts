@@ -154,3 +154,39 @@ describe("BattleAI (expert)", () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 });
+
+describe("BattleAI.chooseSwitchReplacement", () => {
+  it("normal/expert pick the best-scoring healthy switch candidate", () => {
+    const engine = new BattleEngine(new SeededRNG(1));
+    const faintedCharizard = buildPokemon("charizard", "charizard", ["ember"]);
+    faintedCharizard.fainted = true;
+    const blastoise = buildPokemon("blastoise", "blastoise", ["water-gun"]); // resists Fire, counters it
+    const venusaur = buildPokemon("venusaur", "venusaur", ["tackle"]); // weak to Fire
+    const opponent = buildPokemon("opp", "charizard", ["ember"]);
+    const state = engine.createBattle([faintedCharizard, venusaur, blastoise], [opponent]);
+    state.phase = "switching";
+
+    const normalChoice = new BattleAI("normal", new SeededRNG(1)).chooseSwitchReplacement(state, "player");
+    const expertChoice = new BattleAI("expert", new SeededRNG(1)).chooseSwitchReplacement(state, "player");
+    expect(normalChoice).toBe(blastoise.id);
+    expect(expertChoice).toBe(blastoise.id);
+  });
+
+  it("easy picks a random living, non-fainted teammate", () => {
+    const engine = new BattleEngine(new SeededRNG(1));
+    const faintedCharizard = buildPokemon("charizard", "charizard", ["ember"]);
+    faintedCharizard.fainted = true;
+    const blastoise = buildPokemon("blastoise", "blastoise", ["water-gun"]);
+    const venusaur = buildPokemon("venusaur", "venusaur", ["tackle"]);
+    const opponent = buildPokemon("opp", "charizard", ["ember"]);
+    const state = engine.createBattle([faintedCharizard, venusaur, blastoise], [opponent]);
+    state.phase = "switching";
+
+    const choices = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      choices.add(new BattleAI("easy", new SeededRNG(seed)).chooseSwitchReplacement(state, "player"));
+    }
+    expect(choices.has(faintedCharizard.id)).toBe(false);
+    expect(choices.size).toBeGreaterThan(1);
+  });
+});

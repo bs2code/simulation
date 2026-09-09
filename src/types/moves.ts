@@ -64,8 +64,9 @@ export type HealEffect = {
 
 export type RecoilEffect = {
   kind: "recoil";
-  /** Fraction of the damage dealt returned to the user, e.g. 0.33. */
   fraction: number;
+  /** "damage-dealt" (default, e.g. Double-Edge) or "max-hp" (Struggle's fixed 1/4 max HP cost). */
+  basis?: "damage-dealt" | "max-hp";
 };
 
 export type MultiHitEffect = {

@@ -194,3 +194,44 @@ describe("TurnEngine: weather, terrain, and hazards in a real turn", () => {
     expect(afterSwitch.log.some((e) => e.type === "secondary-damage" && e.cause === "stealth-rock")).toBe(true);
   });
 });
+
+describe("TurnEngine: Struggle", () => {
+  it("is rejected while the Pokémon still has a move with PP", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const charizard = buildPokemon("charizard", "charizard", ["ember"]);
+    const blastoise = buildPokemon("blastoise", "blastoise", ["tackle"]);
+    const state = engine.createBattle([charizard], [blastoise]);
+
+    expect(() =>
+      engine.submitTurn(
+        state,
+        { type: "move", pokemonId: charizard.id, moveId: "struggle" },
+        { type: "move", pokemonId: blastoise.id, moveId: "tackle" }
+      )
+    ).toThrow(/cannot use Struggle/);
+  });
+
+  it("is legal once every real move is out of PP, deals damage, and recoils 1/4 max HP with no PP deducted", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const charizard = buildPokemon("charizard", "charizard", ["ember"]);
+    charizard.moves[0].currentPP = 0;
+    const blastoise = buildPokemon("blastoise", "blastoise", ["tackle"]);
+    const state = engine.createBattle([charizard], [blastoise]);
+    const maxHp = charizard.stats.hp;
+
+    const next = engine.submitTurn(
+      state,
+      { type: "move", pokemonId: charizard.id, moveId: "struggle" },
+      { type: "move", pokemonId: blastoise.id, moveId: "tackle" }
+    );
+
+    const struggler = next.sides.player.team[0];
+    expect(struggler.moves[0].currentPP).toBe(0); // unchanged — Struggle isn't a real move slot
+    expect(next.log.some((e) => e.type === "move-used" && e.moveId === "struggle")).toBe(true);
+    expect(next.log.some((e) => e.type === "damage" && e.side === "opponent")).toBe(true);
+    expect(next.log.some((e) => e.type === "secondary-damage" && e.cause === "recoil")).toBe(true);
+    expect(struggler.currentHp).toBeLessThanOrEqual(maxHp - Math.floor(maxHp * 0.25));
+  });
+});

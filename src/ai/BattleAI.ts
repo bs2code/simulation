@@ -15,11 +15,12 @@ const EXPERT_SETUP_HP_THRESHOLD = 0.8;
 const EXPERT_SETUP_SAFE_INCOMING_FRACTION = 0.4;
 const EXPERT_LETHAL_HIT_CHANCE_THRESHOLD = 0.8;
 
+const STRUGGLE: BattleMove = { moveId: "struggle", currentPP: 1, maxPP: 1 };
+
 function usableMoves(pokemon: Pokemon): BattleMove[] {
   const withPP = pokemon.moves.filter((m) => m.currentPP > 0 && !m.disabled);
-  // No implemented moves have PP left — this engine doesn't model Struggle, so fall back to
-  // any move rather than leaving the AI with nothing to submit.
-  return withPP.length > 0 ? withPP : pokemon.moves;
+  // TurnEngine only accepts "struggle" when every real move is out of PP — matches that here.
+  return withPP.length > 0 ? withPP : [STRUGGLE];
 }
 
 /**
@@ -42,6 +43,7 @@ export class BattleAI {
     this.switchEvaluator = switchEvaluator;
   }
 
+  /** Assumes `state.phase === "choosing"` — the active Pokémon on `side` hasn't fainted. */
   chooseAction(state: BattleState, side: BattleSideId): BattleAction {
     const mySide = state.sides[side];
     const opponentSide = state.sides[otherSide(side)];
@@ -57,6 +59,28 @@ export class BattleAI {
       case "expert":
         return this.chooseExpertAction(mySide, opponentSide, active, opponentActive, moves);
     }
+  }
+
+  /**
+   * Picks a replacement during the "switching" phase (the active Pokémon on `side` has fainted).
+   * Separate from chooseAction because there's no move to evaluate here — only which benched
+   * Pokémon to send out next.
+   */
+  chooseSwitchReplacement(state: BattleState, side: BattleSideId): string {
+    const mySide = state.sides[side];
+    const opponentSide = state.sides[otherSide(side)];
+    const opponentActive = opponentSide.team[opponentSide.activePokemonIndex];
+
+    if (this.difficulty === "easy") {
+      const alive = mySide.team.filter((p) => !p.fainted);
+      return alive[this.rng.integer(0, alive.length - 1)].id;
+    }
+
+    const options =
+      this.difficulty === "expert"
+        ? this.switchEvaluator.evaluateSwitchOptionsAgainstTeam(mySide, opponentSide.team)
+        : this.switchEvaluator.evaluateSwitchOptions(mySide, opponentActive);
+    return options[0].pokemonId;
   }
 
   /** EASY: essentially random move selection, no switching. */

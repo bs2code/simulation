@@ -4,24 +4,34 @@ import { SPECIES_LIST } from "./speciesList";
 
 /**
  * Bulk-generated base data (accurate types/base-stats/movepools/abilities for ~1000 species,
- * default form only — see scripts/generate-pokedex.ts) merged with the hand-curated roster
- * (which has real Mega/Gigantamax/Battle Bond forms). Curated entries always win on id
- * collision, so re-running the generator never clobbers hand-built data.
+ * default form only — see scripts/generate-pokedex.ts), in National Dex order, with the
+ * hand-curated roster (real Mega/Gigantamax/Battle Bond forms) swapped in *in place* — by id
+ * where they match, falling back to display name where they don't (PokeAPI's default Lycanroc
+ * slug is "lycanroc-midday", ours is "lycanroc") — so every curated species keeps its correct
+ * Pokédex position instead of being appended at the end. Any curated species with no match at
+ * all in the generated set (shouldn't happen for real Pokémon, but handled defensively) is
+ * appended afterward.
  */
 const GENERATED_SPECIES = generatedSpeciesData as PokemonSpecies[];
 
-// PokeAPI's "default form" slug doesn't always match ours (e.g. its default Lycanroc is
-// "lycanroc-midday", ours is "lycanroc") — dedupe by display name too, or the same Pokémon
-// shows up twice under different ids.
-const CURATED_NAMES = new Set(SPECIES_LIST.map((species) => species.name));
-const DEDUPED_GENERATED_SPECIES = GENERATED_SPECIES.filter((species) => !CURATED_NAMES.has(species.name));
+const curatedById = new Map(SPECIES_LIST.map((species) => [species.id, species]));
+const curatedByName = new Map(SPECIES_LIST.map((species) => [species.name, species]));
+const usedCuratedIds = new Set<string>();
 
-const SPECIES_BY_ID: Map<string, PokemonSpecies> = new Map([
-  ...DEDUPED_GENERATED_SPECIES.map((species): [string, PokemonSpecies] => [species.id, species]),
-  ...SPECIES_LIST.map((species): [string, PokemonSpecies] => [species.id, species]),
-]);
+const ALL_SPECIES: PokemonSpecies[] = GENERATED_SPECIES.map((generated) => {
+  const curated = curatedById.get(generated.id) ?? curatedByName.get(generated.name);
+  if (curated) {
+    usedCuratedIds.add(curated.id);
+    return curated;
+  }
+  return generated;
+});
 
-const ALL_SPECIES: PokemonSpecies[] = Array.from(SPECIES_BY_ID.values());
+for (const species of SPECIES_LIST) {
+  if (!usedCuratedIds.has(species.id)) ALL_SPECIES.push(species);
+}
+
+const SPECIES_BY_ID: Map<string, PokemonSpecies> = new Map(ALL_SPECIES.map((s) => [s.id, s]));
 
 export function getSpecies(speciesId: string): PokemonSpecies {
   const species = SPECIES_BY_ID.get(speciesId);

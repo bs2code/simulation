@@ -1,5 +1,6 @@
 import type { PokemonSpecies } from "@/types/pokemon";
 import generatedSpeciesData from "./generated/species.generated.json";
+import { MEGA_EVOLUTIONS } from "./megaEvolutions";
 import { SPECIES_LIST } from "./speciesList";
 
 /**
@@ -32,6 +33,15 @@ for (const species of SPECIES_LIST) {
 }
 
 const SPECIES_BY_ID: Map<string, PokemonSpecies> = new Map(ALL_SPECIES.map((s) => [s.id, s]));
+
+// Layer the real Mega Evolution roster onto whichever species object ended up at that id above
+// (curated or generated) — Mewtwo picks up two forms (X and Y) via two entries in the table.
+for (const { speciesId, form } of MEGA_EVOLUTIONS) {
+  const species = SPECIES_BY_ID.get(speciesId);
+  if (!species) continue;
+  if (!species.forms) species.forms = [];
+  if (!species.forms.some((f) => f.id === form.id)) species.forms.push(form);
+}
 
 export function getSpecies(speciesId: string): PokemonSpecies {
   const species = SPECIES_BY_ID.get(speciesId);

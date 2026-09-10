@@ -1,4 +1,20 @@
+import { MEGA_EVOLUTIONS } from "@/data/pokemon/megaEvolutions";
 import type { Item } from "@/types/items";
+
+function titleCaseFromSlug(slug: string): string {
+  return slug
+    .split("-")
+    .map((word) => (word.length <= 2 ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(" ");
+}
+
+/** One inert stone item per Mega Evolution in the table — kept in sync automatically (no id can drift out of sync with a form's `requiredItem`, since both come from the same source). */
+const MEGA_STONE_ITEMS: Item[] = MEGA_EVOLUTIONS.map(({ form }) => ({
+  id: form.requiredItem!,
+  name: titleCaseFromSlug(form.requiredItem!),
+  triggers: [],
+  effects: [],
+}));
 
 /** Data-driven held items. Engine code dispatches on `effects[].kind`, never on item id/name. */
 export const ITEM_LIST: Item[] = [
@@ -43,4 +59,5 @@ export const ITEM_LIST: Item[] = [
   { id: "lucarionite", name: "Lucarionite", triggers: [], effects: [] },
   { id: "galladite", name: "Galladite", triggers: [], effects: [] },
   { id: "z-crystal", name: "Z-Crystal", triggers: [], effects: [] },
+  ...MEGA_STONE_ITEMS,
 ];

@@ -35,13 +35,27 @@ function TeamPanel({ slot }: { slot: TeamSlot }) {
     setEditingIndex(null);
   };
 
+  const clearTeam = () => {
+    if (team.members.length === 0) return;
+    if (!window.confirm(`Remove all Pokémon from ${team.name}? This can't be undone.`)) return;
+    save({ ...team, members: [] });
+    setEditingIndex(null);
+  };
+
   return (
     <section className="flex-1">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-lg text-ink">{team.name}</h2>
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${complete ? "bg-success text-panel" : "bg-panel-ink/20 text-ink-muted"}`}>
-          {team.members.length}/{TEAM_SIZE} {complete ? "· Ready" : ""}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${complete ? "bg-success text-panel" : "bg-panel-ink/20 text-ink-muted"}`}>
+            {team.members.length}/{TEAM_SIZE} {complete ? "· Ready" : ""}
+          </span>
+          {team.members.length > 0 && (
+            <button type="button" onClick={clearTeam} className="text-xs text-ink-muted underline hover:text-danger">
+              Clear team
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

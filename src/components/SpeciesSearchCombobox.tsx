@@ -28,6 +28,17 @@ export function SpeciesSearchCombobox({
     return matches.slice(0, MAX_RESULTS);
   }, [query, allSpecies]);
 
+  const matchCount = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? allSpecies.filter((s) => s.name.toLowerCase().includes(q)).length : allSpecies.length;
+  }, [query, allSpecies]);
+
+  // Focus the search box as soon as the editor opens, so typing works immediately without
+  // having to click into the field first.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -76,7 +87,7 @@ export function SpeciesSearchCombobox({
         aria-expanded={isOpen}
         aria-controls="species-search-listbox"
         aria-autocomplete="list"
-        className="w-full rounded border-2 border-panel-ink bg-white px-2 py-1.5 text-panel-ink"
+        className="w-full rounded border-2 border-panel-ink bg-white px-2 py-1.5 text-panel-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/50"
         placeholder={selected.name}
         value={query}
         onChange={(e) => {
@@ -87,6 +98,11 @@ export function SpeciesSearchCombobox({
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
       />
+      {isOpen && query.length > 0 && (
+        <p className="mt-0.5 text-xs text-panel-ink/50">
+          {matchCount} match{matchCount === 1 ? "" : "es"}
+        </p>
+      )}
       {isOpen && (
         <ul
           id="species-search-listbox"

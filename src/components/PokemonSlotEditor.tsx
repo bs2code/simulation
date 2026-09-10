@@ -5,6 +5,7 @@ import { getAbility } from "@/data/abilities";
 import { getAllItems } from "@/data/items";
 import { getMove } from "@/data/moves";
 import { getAllSpecies, getSpecies } from "@/data/pokemon";
+import { SpeciesSearchCombobox } from "./SpeciesSearchCombobox";
 import { TypeBadge } from "./TypeBadge";
 import { NATURES, type Nature } from "@/types/pokemon";
 import type { CreatePokemonConfig } from "@/utils/createPokemon";
@@ -62,17 +63,7 @@ export function PokemonSlotEditor({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           Species
-          <select
-            className="rounded border-2 border-panel-ink bg-white px-2 py-1.5"
-            value={draft.speciesId}
-            onChange={(e) => setSpecies(e.target.value)}
-          >
-            {getAllSpecies().map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          <SpeciesSearchCombobox value={draft.speciesId} onChange={setSpecies} />
         </label>
 
         <label className="flex flex-col gap-1 text-sm">

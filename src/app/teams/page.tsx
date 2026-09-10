@@ -76,6 +76,7 @@ function TeamPanel({ slot }: { slot: TeamSlot }) {
           }
 
           const species = getSpecies(config.speciesId);
+          const form = config.form ? species.forms?.find((f) => f.id === config.form) : undefined;
           return (
             <button
               key={index}
@@ -84,13 +85,13 @@ function TeamPanel({ slot }: { slot: TeamSlot }) {
               className="flex aspect-[4/3] flex-col justify-between rounded-lg border-[3px] border-panel-ink bg-panel p-2.5 text-left text-panel-ink shadow-[3px_3px_0_rgba(0,0,0,0.3)] transition-transform hover:-translate-y-0.5"
             >
               <div>
-                <p className="truncate font-display text-xs">{species.name}</p>
+                <p className="truncate font-display text-xs">{form?.name ?? species.name}</p>
                 <p className="text-[11px] text-panel-ink/60">
                   Lv.{config.level} · {getAbility(config.ability).name}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1">
-                {species.types.map((t) => (
+                {(form?.types ?? species.types).map((t) => (
                   <TypeBadge key={t} type={t} small />
                 ))}
               </div>

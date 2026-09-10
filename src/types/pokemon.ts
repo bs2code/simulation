@@ -149,7 +149,16 @@ export type PokemonForm = {
   baseStats: Stats;
   abilities: string[];
   /** e.g. "mega", "gigantamax", "regional" — used by the mechanics engine to gate access. */
-  formCategory: "mega" | "gigantamax" | "regional" | "alolan" | "hisuian" | "battle-bond" | "other";
+  formCategory:
+    | "mega"
+    | "gigantamax"
+    | "regional"
+    | "alolan"
+    | "galarian"
+    | "hisuian"
+    | "paldean"
+    | "battle-bond"
+    | "other";
   /** Item id the holder must have equipped to transform into this form (e.g. a Mega Stone). Omitted for forms that don't need one (Gigantamax, Battle Bond). */
   requiredItem?: string;
 };

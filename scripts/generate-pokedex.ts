@@ -15,8 +15,13 @@
  * species, Mega/Gigantamax/Battle Bond forms — always take precedence over this generated data;
  * see the merge in each data module's index.ts. Re-running this script never touches curated data.
  *
- * Only each species' *default* form is imported (no regional forms/megas/gigantamax beyond the
- * hand-curated roster) — building an accurate forms system for ~1000 species is future work.
+ * Each species' default form is the main species entry. Regional variants (Alolan/Galarian/
+ * Hisuian/Paldean — identified by PokeAPI's own `-alola`/`-galar`/`-hisui`/`-paldea` identifier
+ * suffixes) are pulled too and attached as PokemonForms with no requiredItem, since — unlike
+ * Mega/Gigantamax — they're a permanent alternate version chosen at team-build time, not a
+ * mid-battle transformation. Mega Evolutions and Gigantamax beyond the hand-curated roster are
+ * still not covered here (see data/pokemon/megaEvolutions.ts for those, hand-curated instead
+ * since Mega forms need a requiredItem/stone this script has no reliable way to infer).
  *
  * Usage: npx tsx scripts/generate-pokedex.ts
  * (Downloaded CSVs are cached under .cache/pokedex-csv/, gitignored, so re-runs are fast.)
@@ -357,6 +362,78 @@ async function main() {
     `Generated ${generatedSpecies.length} species (skipped ${skippedNoStats} missing stats/types, ${skippedNoMovesOrAbilities} missing moves/abilities)`
   );
   await writeJson("src/data/pokemon/generated/species.generated.json", generatedSpecies);
+
+  // --- regional forms (Alolan/Galarian/Hisuian/Paldean) ---
+  const REGIONAL_SUFFIXES: { suffix: string; category: string; prefix: string }[] = [
+    { suffix: "-alola", category: "alolan", prefix: "Alolan" },
+    { suffix: "-galar", category: "galarian", prefix: "Galarian" },
+    { suffix: "-hisui", category: "hisuian", prefix: "Hisuian" },
+    { suffix: "-paldea", category: "paldean", prefix: "Paldean" },
+  ];
+
+  const defaultIdentifierBySpeciesId = new Map<string, string>();
+  for (const row of pokemonRows) {
+    if (row.is_default === "1") defaultIdentifierBySpeciesId.set(row.species_id, row.identifier);
+  }
+
+  const regionalForms: {
+    speciesId: string;
+    form: {
+      id: string;
+      name: string;
+      types: PokemonType[];
+      baseStats: { hp: number; attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number };
+      abilities: string[];
+      formCategory: string;
+    };
+  }[] = [];
+  let skippedRegionalIncomplete = 0;
+
+  for (const row of pokemonRows) {
+    if (row.is_default === "1") continue;
+    // Totem forms (Sun/Moon battle-only, boosted-stat variants) and cosmetic cap Pikachus
+    // (event hats with zero stat differences) can coincidentally contain a region suffix
+    // (e.g. "raticate-totem-alola", "pikachu-alola-cap") without being a real regional form.
+    if (row.identifier.includes("-totem") || row.identifier.includes("-cap")) continue;
+    const match = REGIONAL_SUFFIXES.find((r) => row.identifier.includes(r.suffix));
+    if (!match) continue;
+
+    const baseSpeciesId = defaultIdentifierBySpeciesId.get(row.species_id);
+    const baseStats = statsByPokemonId.get(row.id);
+    const types = (typesByPokemonId.get(row.id) ?? []).sort((a, b) => a.slot - b.slot).map((t) => t.type);
+    const abilities = abilitiesByPokemonId.get(row.id) ?? [];
+    if (!baseSpeciesId || !baseStats || types.length === 0 || abilities.length === 0) {
+      skippedRegionalIncomplete++;
+      continue;
+    }
+
+    const baseSpeciesName = speciesNameBySpeciesId.get(row.species_id) ?? titleCaseFromSlug(baseSpeciesId);
+    // Extra segments after the region suffix distinguish e.g. Paldean Tauros's three breeds.
+    const afterSuffix = row.identifier.split(match.suffix)[1]?.replace(/^-/, "");
+    const suffixLabel = afterSuffix ? ` (${titleCaseFromSlug(afterSuffix)})` : "";
+
+    regionalForms.push({
+      speciesId: baseSpeciesId,
+      form: {
+        id: row.identifier,
+        name: `${match.prefix} ${baseSpeciesName}${suffixLabel}`,
+        types,
+        baseStats: {
+          hp: baseStats.hp ?? 1,
+          attack: baseStats.attack ?? 1,
+          defense: baseStats.defense ?? 1,
+          specialAttack: baseStats.specialAttack ?? 1,
+          specialDefense: baseStats.specialDefense ?? 1,
+          speed: baseStats.speed ?? 1,
+        },
+        abilities,
+        formCategory: match.category,
+      },
+    });
+  }
+
+  console.log(`Generated ${regionalForms.length} regional forms (skipped ${skippedRegionalIncomplete} incomplete)`);
+  await writeJson("src/data/pokemon/generated/regional-forms.generated.json", regionalForms);
 
   console.log("Done.");
 }

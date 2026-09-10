@@ -36,7 +36,12 @@ export function createPokemon(config: CreatePokemonConfig): Pokemon {
   const species = getSpecies(config.speciesId);
   const ivs = config.ivs ?? DEFAULT_IVS;
   const evs = config.evs ?? DEFAULT_EVS;
-  const stats = calculateStats(species.baseStats, config.level, config.nature, ivs, evs);
+  // A starting form (e.g. a regional variant chosen in the team builder) has its own base
+  // stats — unlike Mega/Gigantamax, which start in the base form and transform mid-battle via
+  // MechanicsEngine, a form specified here is what the Pokémon *is* from turn one.
+  const startingForm = config.form ? species.forms?.find((f) => f.id === config.form) : undefined;
+  const baseStats = startingForm?.baseStats ?? species.baseStats;
+  const stats = calculateStats(baseStats, config.level, config.nature, ivs, evs);
   const moves: BattleMove[] = config.moveIds.map((moveId) => createBattleMove(getMove(moveId)));
 
   return {

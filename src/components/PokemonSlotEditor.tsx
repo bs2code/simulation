@@ -14,6 +14,9 @@ const MAX_MOVES = 4;
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 100;
 
+/** Forms selectable at team-build time (a permanent alternate version) rather than a mid-battle mechanic. */
+const STARTABLE_FORM_CATEGORIES = new Set(["regional", "alolan", "galarian", "hisuian", "paldean"]);
+
 function defaultConfigForSpecies(speciesId: string): CreatePokemonConfig {
   const species = getSpecies(speciesId);
   return {
@@ -42,8 +45,20 @@ export function PokemonSlotEditor({
   );
   const species = getSpecies(draft.speciesId);
   const itemData = getAllItems();
+  const startableForms = species.forms?.filter((f) => STARTABLE_FORM_CATEGORIES.has(f.formCategory)) ?? [];
+  const activeForm = draft.form ? species.forms?.find((f) => f.id === draft.form) : undefined;
+  const abilityOptions = activeForm?.abilities ?? species.abilities;
 
   const setSpecies = (speciesId: string) => setDraft(defaultConfigForSpecies(speciesId));
+
+  const setForm = (formId: string) => {
+    const form = formId ? species.forms?.find((f) => f.id === formId) : undefined;
+    setDraft((prev) => ({
+      ...prev,
+      form: formId || undefined,
+      ability: form ? form.abilities[0] : species.abilities[0],
+    }));
+  };
 
   const toggleMove = (moveId: string) => {
     setDraft((prev) => {
@@ -65,6 +80,24 @@ export function PokemonSlotEditor({
           Species
           <SpeciesSearchCombobox value={draft.speciesId} onChange={setSpecies} />
         </label>
+
+        {startableForms.length > 0 && (
+          <label className="flex flex-col gap-1 text-sm">
+            Form
+            <select
+              className="rounded border-2 border-panel-ink bg-white px-2 py-1.5"
+              value={draft.form ?? ""}
+              onChange={(e) => setForm(e.target.value)}
+            >
+              <option value="">{species.name} (Standard)</option>
+              {startableForms.map((form) => (
+                <option key={form.id} value={form.id}>
+                  {form.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="flex flex-col gap-1 text-sm">
           Level
@@ -103,7 +136,7 @@ export function PokemonSlotEditor({
             value={draft.ability}
             onChange={(e) => setDraft((prev) => ({ ...prev, ability: e.target.value }))}
           >
-            {species.abilities.map((abilityId) => (
+            {abilityOptions.map((abilityId) => (
               <option key={abilityId} value={abilityId}>
                 {getAbility(abilityId).name}
               </option>

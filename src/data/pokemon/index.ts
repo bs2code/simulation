@@ -1,4 +1,5 @@
-import type { PokemonSpecies } from "@/types/pokemon";
+import type { PokemonForm, PokemonSpecies } from "@/types/pokemon";
+import generatedRegionalFormsData from "./generated/regional-forms.generated.json";
 import generatedSpeciesData from "./generated/species.generated.json";
 import { MEGA_EVOLUTIONS } from "./megaEvolutions";
 import { SPECIES_LIST } from "./speciesList";
@@ -34,9 +35,12 @@ for (const species of SPECIES_LIST) {
 
 const SPECIES_BY_ID: Map<string, PokemonSpecies> = new Map(ALL_SPECIES.map((s) => [s.id, s]));
 
-// Layer the real Mega Evolution roster onto whichever species object ended up at that id above
-// (curated or generated) — Mewtwo picks up two forms (X and Y) via two entries in the table.
-for (const { speciesId, form } of MEGA_EVOLUTIONS) {
+// Layer the real Mega Evolution roster, and generated regional forms (Alolan/Galarian/Hisuian/
+// Paldean — see scripts/generate-pokedex.ts), onto whichever species object ended up at that id
+// above (curated or generated). Mewtwo picks up two forms (X and Y) via two Mega table entries.
+const GENERATED_REGIONAL_FORMS = generatedRegionalFormsData as { speciesId: string; form: PokemonForm }[];
+
+for (const { speciesId, form } of [...MEGA_EVOLUTIONS, ...GENERATED_REGIONAL_FORMS]) {
   const species = SPECIES_BY_ID.get(speciesId);
   if (!species) continue;
   if (!species.forms) species.forms = [];

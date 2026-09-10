@@ -59,9 +59,15 @@ export default function BattlePage() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [pendingChoices, setPendingChoices] = useState<Partial<Record<BattleSideId, BattleAction>>>({});
-  const [pendingMechanic, setPendingMechanic] = useState<BattleMechanic | undefined>(undefined);
+  // Per-side, not a single shared value — a human-vs-human battle has two independent mechanic
+  // toggles. Sharing one here meant side B's "mega" toggle could still be set when side A
+  // submitted, silently attaching mechanic: "mega" to a Pokémon that can't mega evolve — that
+  // fails validation, submitTurn throws, and with nothing catching it the whole battle freezes
+  // with both sides stuck showing "ready" forever.
+  const [pendingMechanics, setPendingMechanics] = useState<Partial<Record<BattleSideId, BattleMechanic | undefined>>>({});
   const [voluntarySwitchFor, setVoluntarySwitchFor] = useState<BattleSideId | null>(null);
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [turnError, setTurnError] = useState<string | null>(null);
 
   const controllerFor = (side: BattleSideId): Controller => (side === "player" ? teamAController : teamBController);
 
@@ -75,9 +81,10 @@ export default function BattlePage() {
     const initial = engine.createBattle(buildTeamFromSaved("A", teamA.team), buildTeamFromSaved("B", teamB.team), STANDARD_RULES);
     setSession({ engine, ais, seed, state: initial, snapshots: [initial] });
     setPendingChoices({});
-    setPendingMechanic(undefined);
+    setPendingMechanics({});
     setVoluntarySwitchFor(null);
     setReplayIndex(null);
+    setTurnError(null);
   }
 
   /** Resolves any AI-controlled forced switch(es) synchronously, stopping if a human must choose. */
@@ -114,10 +121,19 @@ export default function BattlePage() {
         resolved[side] = choices[side];
       }
     }
-    const newState = session.engine.submitTurn(session.state, resolved.player!, resolved.opponent!);
-    advance(newState);
-    setPendingChoices({});
-    setPendingMechanic(undefined);
+    try {
+      const newState = session.engine.submitTurn(session.state, resolved.player!, resolved.opponent!);
+      advance(newState);
+      setPendingChoices({});
+      setPendingMechanics({});
+      setTurnError(null);
+    } catch (err) {
+      // A bad action (e.g. an illegal mechanic) must not leave both sides stuck showing
+      // "ready" forever — un-submit so whoever caused it can pick again.
+      setPendingChoices({});
+      setPendingMechanics({});
+      setTurnError(err instanceof Error ? err.message : "That turn couldn't be resolved. Please choose again.");
+    }
   }
 
   function submitChoice(side: BattleSideId, action: BattleAction) {
@@ -214,6 +230,10 @@ export default function BattlePage() {
 
           <BattleLogPanel lines={logLines} />
 
+          {turnError && (
+            <p className="rounded border-2 border-danger bg-danger/10 px-3 py-2 text-sm text-danger">{turnError}</p>
+          )}
+
           {session.state.phase === "ended" ? (
             <BattleResultPanel state={session.state} onRematch={startBattle} onWatchReplay={() => setReplayIndex(0)} />
           ) : (
@@ -264,10 +284,17 @@ export default function BattlePage() {
             return (
               <div key={side} className="flex-1 space-y-2">
                 <p className="text-sm font-medium text-ink">{label}</p>
-                <MechanicToggleRow state={session.state} side={side} selected={pendingMechanic} onToggle={setPendingMechanic} />
+                <MechanicToggleRow
+                  state={session.state}
+                  side={side}
+                  selected={pendingMechanics[side]}
+                  onToggle={(mechanic) => setPendingMechanics((prev) => ({ ...prev, [side]: mechanic }))}
+                />
                 <MoveButtonGrid
                   pokemon={active}
-                  onSelect={(moveId) => submitChoice(side, { type: "move", pokemonId: active.id, moveId, mechanic: pendingMechanic })}
+                  onSelect={(moveId) =>
+                    submitChoice(side, { type: "move", pokemonId: active.id, moveId, mechanic: pendingMechanics[side] })
+                  }
                 />
                 <button type="button" onClick={() => setVoluntarySwitchFor(side)} className="text-xs text-ink-muted underline">
                   Switch out

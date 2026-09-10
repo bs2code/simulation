@@ -13,6 +13,13 @@ import { SPECIES_LIST } from "./speciesList";
  * Pokédex position instead of being appended at the end. Any curated species with no match at
  * all in the generated set (shouldn't happen for real Pokémon, but handled defensively) is
  * appended afterward.
+ *
+ * Curated types/base-stats/abilities/forms win (they're hand-verified, and Mega/Gigantamax/
+ * Battle Bond forms only exist on the curated side) — but curated `moves` were only ever a
+ * small Phase 1-5 demo subset (e.g. Charizard's original 7), while the generated side has each
+ * species' real, full movepool. Using only the curated list would leave these ~9 species with
+ * far fewer selectable moves than the other ~1016 species merged in later, so `moves` is the
+ * union of both here rather than the curated list alone.
  */
 const GENERATED_SPECIES = generatedSpeciesData as PokemonSpecies[];
 
@@ -24,7 +31,7 @@ const ALL_SPECIES: PokemonSpecies[] = GENERATED_SPECIES.map((generated) => {
   const curated = curatedById.get(generated.id) ?? curatedByName.get(generated.name);
   if (curated) {
     usedCuratedIds.add(curated.id);
-    return curated;
+    return { ...curated, moves: Array.from(new Set([...generated.moves, ...curated.moves])) };
   }
   return generated;
 });

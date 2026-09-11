@@ -8,8 +8,13 @@ function titleCaseFromSlug(slug: string): string {
     .join(" ");
 }
 
-/** One inert stone item per Mega Evolution in the table — kept in sync automatically (no id can drift out of sync with a form's `requiredItem`, since both come from the same source). */
-const MEGA_STONE_ITEMS: Item[] = MEGA_EVOLUTIONS.map(({ form }) => ({
+/**
+ * One inert stone item per item-gated Mega Evolution in the table — kept in sync automatically
+ * (no id can drift out of sync with a form's `requiredItem`, since both come from the same
+ * source). Rayquaza's entry has no `requiredItem` (it's gated on knowing Dragon Ascent instead,
+ * see megaEvolutions.ts), so it's filtered out here rather than generating a bogus stone item.
+ */
+const MEGA_STONE_ITEMS: Item[] = MEGA_EVOLUTIONS.filter(({ form }) => form.requiredItem).map(({ form }) => ({
   id: form.requiredItem!,
   name: titleCaseFromSlug(form.requiredItem!),
   triggers: [],

@@ -19,9 +19,18 @@ function findForm(pokemon: Pokemon, category: PokemonForm["formCategory"]): Poke
   return getSpecies(pokemon.speciesId).forms?.find((f) => f.formCategory === category);
 }
 
-function findMegaFormForHeldItem(pokemon: Pokemon): PokemonForm | undefined {
+/**
+ * Finds the Mega form (if any) `pokemon` currently qualifies for. Most Megas are gated on a
+ * held item (`requiredItem`); Rayquaza is the one exception, gated on knowing Dragon Ascent
+ * (`requiredMove`) instead — see megaEvolutions.ts.
+ */
+function findAvailableMegaForm(pokemon: Pokemon): PokemonForm | undefined {
   const species = getSpecies(pokemon.speciesId);
-  return species.forms?.find((f) => f.formCategory === "mega" && f.requiredItem === pokemon.item);
+  return species.forms?.find((f) => {
+    if (f.formCategory !== "mega") return false;
+    if (f.requiredMove) return pokemon.moves.some((m) => m.moveId === f.requiredMove);
+    return f.requiredItem === pokemon.item;
+  });
 }
 
 export function canActivateMechanic(
@@ -39,8 +48,8 @@ export function canActivateMechanic(
         return { ok: false, reason: "Mega Evolution has already been used the maximum number of times this battle" };
       }
       if (pokemon.mechanicState.megaEvolved) return { ok: false, reason: "This Pokémon has already Mega Evolved" };
-      if (!findMegaFormForHeldItem(pokemon)) {
-        return { ok: false, reason: "This Pokémon has no Mega Evolution unlocked by its held item" };
+      if (!findAvailableMegaForm(pokemon)) {
+        return { ok: false, reason: "This Pokémon has no Mega Evolution available (needs the right held item, or for Rayquaza, to know Dragon Ascent)" };
       }
       return { ok: true };
     }
@@ -104,7 +113,7 @@ export function activateMechanic(
   mechanic: Exclude<BattleMechanic, "z-move">
 ): BattleEvent {
   if (mechanic === "mega") {
-    const form = findMegaFormForHeldItem(pokemon)!;
+    const form = findAvailableMegaForm(pokemon)!;
     transformStats(pokemon, form.baseStats, false);
     pokemon.form = form.id;
     pokemon.mechanicState.megaEvolved = true;

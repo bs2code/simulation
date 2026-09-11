@@ -69,7 +69,11 @@ export function PokemonSlotEditor({
     });
   };
 
-  const megaForm = species.forms?.find((f) => f.formCategory === "mega" && f.requiredItem === draft.item);
+  const megaForm = species.forms?.find(
+    (f) =>
+      f.formCategory === "mega" &&
+      (f.requiredMove ? draft.moveIds.includes(f.requiredMove) : f.requiredItem === draft.item)
+  );
   const canGigantamax = species.forms?.some((f) => f.formCategory === "gigantamax") ?? false;
   const canZMove = draft.item === "z-crystal";
 

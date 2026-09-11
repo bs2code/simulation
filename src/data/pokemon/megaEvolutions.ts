@@ -5,11 +5,14 @@ import type { PokemonForm } from "@/types/pokemon";
  * that id in data/pokemon/index.ts's merge (curated or generated) — this table only needs to
  * know the mega form itself, not re-supply the species' base data.
  *
- * Not included: Mega Rayquaza (unlocks via knowing Dragon Ascent, not a held item — doesn't fit
- * this engine's item-gated mega mechanic) and Primal Kyogre/Groudon (Primal Reversion is a
- * distinct mechanic from Mega Evolution in the real games, not modeled by this engine's
- * BattleMechanic union). Charizard, Lucario, and Gallade already have their mega forms defined
- * directly in the curated speciesList.ts and are intentionally not duplicated here.
+ * Every Pokémon that can Mega Evolve in the real games is represented here, including Rayquaza —
+ * which uniquely unlocks via knowing the move Dragon Ascent rather than holding a Mega Stone, so
+ * its entry sets `requiredMove` instead of `requiredItem` (see MechanicsEngine's mega-evolution
+ * check, which branches on whichever field is present). Not included: Primal Kyogre/Groudon,
+ * since Primal Reversion is a distinct mechanic from Mega Evolution in the real games, not
+ * modeled by this engine's BattleMechanic union. Charizard, Lucario, and Gallade already have
+ * their mega forms defined directly in the curated speciesList.ts and are intentionally not
+ * duplicated here.
  */
 export const MEGA_EVOLUTIONS: { speciesId: string; form: PokemonForm }[] = [
   {
@@ -526,6 +529,18 @@ export const MEGA_EVOLUTIONS: { speciesId: string; form: PokemonForm }[] = [
       abilities: ["sand-force"],
       formCategory: "mega",
       requiredItem: "garchompite",
+    },
+  },
+  {
+    speciesId: "rayquaza",
+    form: {
+      id: "mega-rayquaza",
+      name: "Mega Rayquaza",
+      types: ["Dragon", "Flying"],
+      baseStats: { hp: 105, attack: 180, defense: 100, specialAttack: 180, specialDefense: 100, speed: 115 },
+      abilities: ["delta-stream"],
+      formCategory: "mega",
+      requiredMove: "dragon-ascent",
     },
   },
 ];

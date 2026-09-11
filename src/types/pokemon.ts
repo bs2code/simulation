@@ -159,8 +159,10 @@ export type PokemonForm = {
     | "paldean"
     | "battle-bond"
     | "other";
-  /** Item id the holder must have equipped to transform into this form (e.g. a Mega Stone). Omitted for forms that don't need one (Gigantamax, Battle Bond). */
+  /** Item id the holder must have equipped to transform into this form (e.g. a Mega Stone). Omitted for forms that don't need one (Gigantamax, Battle Bond, or a move-gated Mega like Rayquaza). */
   requiredItem?: string;
+  /** Move id the holder must know to transform into this form instead of a held item (Mega Rayquaza only, via Dragon Ascent). Mutually exclusive with `requiredItem`. */
+  requiredMove?: string;
 };
 
 /** Species-level, immutable Pokédex data. Never holds battle state. */

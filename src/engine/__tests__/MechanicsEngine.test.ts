@@ -18,16 +18,23 @@ describe("canActivateMechanic: mega evolution", () => {
   it("requires the matching Mega Stone", () => {
     const lucario = buildPokemon("lucario", "lucario", ["close-combat"]);
     const side = createBattleSide([lucario]);
-    expect(canActivateMechanic(lucario, side, "mega", STANDARD_RULES)).toEqual({
-      ok: false,
-      reason: "This Pokémon has no Mega Evolution unlocked by its held item",
-    });
+    expect(canActivateMechanic(lucario, side, "mega", STANDARD_RULES).ok).toBe(false);
   });
 
   it("succeeds once the right Mega Stone is held", () => {
     const lucario = buildPokemon("lucario", "lucario", ["close-combat"], 50, { item: "lucarionite" });
     const side = createBattleSide([lucario]);
     expect(canActivateMechanic(lucario, side, "mega", STANDARD_RULES)).toEqual({ ok: true });
+  });
+
+  it("Rayquaza mega-evolves by knowing Dragon Ascent instead of a held item", () => {
+    const rayquazaWithoutMove = buildPokemon("rayquaza", "rayquaza", ["dragon-claw"]);
+    const sideWithoutMove = createBattleSide([rayquazaWithoutMove]);
+    expect(canActivateMechanic(rayquazaWithoutMove, sideWithoutMove, "mega", STANDARD_RULES).ok).toBe(false);
+
+    const rayquazaWithMove = buildPokemon("rayquaza", "rayquaza", ["dragon-ascent"]);
+    const sideWithMove = createBattleSide([rayquazaWithMove]);
+    expect(canActivateMechanic(rayquazaWithMove, sideWithMove, "mega", STANDARD_RULES)).toEqual({ ok: true });
   });
 
   it("the wrong Mega Stone doesn't unlock a different species' Mega Evolution", () => {

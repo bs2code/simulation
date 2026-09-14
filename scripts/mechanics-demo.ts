@@ -20,7 +20,7 @@ function narrate(event: BattleEvent, state: BattleState) {
       console.log(`\n=== Turn ${event.turn} ===`);
       break;
     case "form-change": {
-      const label = { mega: "Mega Evolved", gigantamax: "Gigantamaxed", "battle-bond": "Battle Bond activated!", revert: "reverted to its base form" }[event.cause];
+      const label = { mega: "Mega Evolved", gigantamax: "Gigantamaxed", "battle-bond": "Battle Bond activated!", revert: "reverted to its base form", auto: "transformed" }[event.cause];
       console.log(`${name(event.side, event.pokemonId)} ${label}${event.form ? ` -> ${event.form}` : ""}!`);
       break;
     }

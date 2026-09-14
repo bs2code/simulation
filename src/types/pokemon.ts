@@ -158,11 +158,22 @@ export type PokemonForm = {
     | "hisuian"
     | "paldean"
     | "battle-bond"
+    | "primal"
+    | "crowned"
+    | "origin"
+    | "alternate"
     | "other";
   /** Item id the holder must have equipped to transform into this form (e.g. a Mega Stone). Omitted for forms that don't need one (Gigantamax, Battle Bond, or a move-gated Mega like Rayquaza). */
   requiredItem?: string;
   /** Move id the holder must know to transform into this form instead of a held item (Mega Rayquaza only, via Dragon Ascent). Mutually exclusive with `requiredItem`. */
   requiredMove?: string;
+  /**
+   * True for forms that aren't chosen via a BattleMechanic at all — in the real games they're
+   * simply whichever form the Pokémon takes the instant it's sent into battle, based on its
+   * held item (Primal Reversion, Zacian/Zamazenta's Crowned formes, Giratina's Origin Forme).
+   * Requires `requiredItem`; checked automatically on every switch-in, not offered as a toggle.
+   */
+  autoOnSwitchIn?: boolean;
 };
 
 /** Species-level, immutable Pokédex data. Never holds battle state. */

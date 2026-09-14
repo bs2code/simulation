@@ -15,7 +15,7 @@ const MIN_LEVEL = 1;
 const MAX_LEVEL = 100;
 
 /** Forms selectable at team-build time (a permanent alternate version) rather than a mid-battle mechanic. */
-const STARTABLE_FORM_CATEGORIES = new Set(["regional", "alolan", "galarian", "hisuian", "paldean"]);
+const STARTABLE_FORM_CATEGORIES = new Set(["regional", "alolan", "galarian", "hisuian", "paldean", "alternate"]);
 
 function defaultConfigForSpecies(speciesId: string): CreatePokemonConfig {
   const species = getSpecies(speciesId);
@@ -76,6 +76,7 @@ export function PokemonSlotEditor({
   );
   const canGigantamax = species.forms?.some((f) => f.formCategory === "gigantamax") ?? false;
   const canZMove = draft.item === "z-crystal";
+  const switchInForm = species.forms?.find((f) => f.autoOnSwitchIn && f.requiredItem === draft.item);
 
   return (
     <div className="rounded-lg border-[3px] border-panel-ink bg-panel p-4 text-panel-ink shadow-[4px_4px_0_rgba(0,0,0,0.35)]">
@@ -196,11 +197,14 @@ export function PokemonSlotEditor({
         </div>
       </div>
 
-      {(megaForm || canGigantamax || canZMove) && (
+      {(megaForm || canGigantamax || canZMove || switchInForm) && (
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-panel-ink/70">
           {megaForm && <span className="rounded border border-panel-ink/30 px-2 py-1">Can Mega Evolve → {megaForm.name}</span>}
           {canGigantamax && <span className="rounded border border-panel-ink/30 px-2 py-1">Can Gigantamax</span>}
           {canZMove && <span className="rounded border border-panel-ink/30 px-2 py-1">Can use a Z-Move</span>}
+          {switchInForm && (
+            <span className="rounded border border-panel-ink/30 px-2 py-1">Transforms on switch-in → {switchInForm.name}</span>
+          )}
         </div>
       )}
 

@@ -228,7 +228,8 @@ export type BattleEvent =
       pokemonId: string;
       /** The new form id, or undefined when reverting to the base form. */
       form?: string;
-      cause: Exclude<BattleMechanic, "z-move"> | "revert";
+      /** "auto": a switch-in form-lock (Primal Reversion, Crowned formes, Giratina's Origin Forme) rather than a chosen mechanic. */
+      cause: Exclude<BattleMechanic, "z-move"> | "revert" | "auto";
     }
   | { type: "z-move-used"; side: BattleSideId; pokemonId: string; moveId: string }
   | { type: "switch-out"; side: BattleSideId; pokemonId: string }

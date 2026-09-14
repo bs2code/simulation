@@ -148,6 +148,40 @@ describe("TurnEngine: Z-Moves in a real turn", () => {
   });
 });
 
+describe("TurnEngine: switch-in-locked forms (Primal Reversion, Crowned formes, Origin Forme) in a real battle", () => {
+  it("Primal Groudon transforms on the very first send-out, before any turn is submitted", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const groudon = buildPokemon("groudon", "groudon", ["earthquake"], 50, { item: "red-orb" });
+    const blastoise = buildPokemon("blastoise", "blastoise", ["tackle"]);
+    const state = engine.createBattle([groudon], [blastoise]);
+
+    expect(state.sides.player.team[0].form).toBe("primal-groudon");
+    expect(state.log.some((e) => e.type === "form-change" && e.cause === "auto" && e.form === "primal-groudon")).toBe(true);
+  });
+
+  it("Primal Kyogre transforms when switched in mid-battle rather than at the initial send-out", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const groudon = buildPokemon("groudon", "groudon", ["earthquake"]);
+    const kyogre = buildPokemon("kyogre", "kyogre", ["surf"], 50, { item: "blue-orb" });
+    const blastoise = buildPokemon("blastoise", "blastoise", ["tackle"]);
+    let state = engine.createBattle([groudon, kyogre], [blastoise]);
+
+    expect(state.sides.player.team[1].form).toBeUndefined();
+
+    state = engine.submitTurn(
+      state,
+      { type: "switch", pokemonId: kyogre.id },
+      { type: "move", pokemonId: blastoise.id, moveId: "tackle" }
+    );
+
+    const switchedIn = state.sides.player.team.find((p) => p.id === kyogre.id)!;
+    expect(switchedIn.form).toBe("primal-kyogre");
+    expect(state.log.some((e) => e.type === "form-change" && e.cause === "auto" && e.form === "primal-kyogre")).toBe(true);
+  });
+});
+
 describe("TurnEngine: Battle Bond in a real turn", () => {
   it("activates automatically when a Battle Bond Greninja gets a KO", () => {
     const rng = new SeededRNG(1);

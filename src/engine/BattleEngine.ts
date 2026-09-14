@@ -2,6 +2,7 @@ import {
   createBattleSide,
   createDefaultFieldState,
   type BattleAction,
+  type BattleEvent,
   type BattleSideId,
   type BattleState,
 } from "@/types/battle";
@@ -9,6 +10,7 @@ import type { Pokemon } from "@/types/pokemon";
 import { STANDARD_RULES, type BattleRules } from "@/types/rules";
 import type { RNG } from "@/utils/rng";
 import { DamageEngine } from "./DamageEngine";
+import { tryAutoActivateSwitchInForm } from "./MechanicsEngine";
 import { getSidesNeedingForcedSwitch } from "./SwitchEngine";
 import { TurnEngine } from "./TurnEngine";
 
@@ -28,18 +30,24 @@ export class BattleEngine {
     if (playerTeam.length === 0 || opponentTeam.length === 0) {
       throw new Error("Both teams must have at least one Pokémon");
     }
+    const sides = {
+      player: createBattleSide(playerTeam),
+      opponent: createBattleSide(opponentTeam),
+    };
+    const log: BattleEvent[] = [];
+    for (const [sideId, side] of Object.entries(sides) as [BattleSideId, ReturnType<typeof createBattleSide>][]) {
+      const event = tryAutoActivateSwitchInForm(side.team[side.activePokemonIndex], sideId);
+      if (event) log.push(event);
+    }
     return {
       turn: 1,
       phase: "choosing",
       weather: { id: "none", turnsRemaining: 0 },
       terrain: { id: "none", turnsRemaining: 0 },
       rules,
-      sides: {
-        player: createBattleSide(playerTeam),
-        opponent: createBattleSide(opponentTeam),
-      },
+      sides,
       field: createDefaultFieldState(),
-      log: [],
+      log,
     };
   }
 

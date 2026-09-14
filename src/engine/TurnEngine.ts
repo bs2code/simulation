@@ -32,6 +32,7 @@ import {
   getZMoveVariant,
   tickMechanicDurations,
   tryAutoActivateBattleBond,
+  tryAutoActivateSwitchInForm,
 } from "./MechanicsEngine";
 import {
   findTeamIndexByPokemonId,
@@ -199,6 +200,8 @@ export class TurnEngine {
     const targetIndex = findTeamIndexByPokemonId(side, action.pokemonId);
     const events = performSwitch(side, sideId, targetIndex);
     const incoming = side.team[targetIndex];
+    const autoFormEvent = tryAutoActivateSwitchInForm(incoming, sideId);
+    if (autoFormEvent) events.push(autoFormEvent);
     events.push(...applyHazardsOnSwitchIn(side, sideId, incoming, this.rng));
     return events;
   }

@@ -6,6 +6,7 @@ import {
   getZMoveVariant,
   tickMechanicDurations,
   tryAutoActivateBattleBond,
+  tryAutoActivateSwitchInForm,
 } from "../MechanicsEngine";
 import { BattleEngine } from "../BattleEngine";
 import { createBattleSide } from "@/types/battle";
@@ -216,5 +217,65 @@ describe("Battle Bond auto-activation", () => {
     const greninja = buildPokemon("greninja", "greninja", ["hydro-pump"], 50, { ability: "torrent" });
     const side = createBattleSide([greninja]);
     expect(tryAutoActivateBattleBond(greninja, side, "player", STANDARD_RULES)).toBeUndefined();
+  });
+});
+
+describe("tryAutoActivateSwitchInForm: Primal Reversion, Crowned formes, Origin Forme", () => {
+  it("Primal Groudon transforms automatically while holding the Red Orb", () => {
+    const groudon = buildPokemon("groudon", "groudon", ["earthquake"], 50, { item: "red-orb" });
+    const event = tryAutoActivateSwitchInForm(groudon, "player");
+
+    expect(event).toEqual({ type: "form-change", side: "player", pokemonId: groudon.id, form: "primal-groudon", cause: "auto" });
+    expect(groudon.form).toBe("primal-groudon");
+    expect(groudon.stats.attack).toBeGreaterThan(150); // base Groudon Atk stat line is lower
+  });
+
+  it("Primal Kyogre transforms automatically while holding the Blue Orb", () => {
+    const kyogre = buildPokemon("kyogre", "kyogre", ["surf"], 50, { item: "blue-orb" });
+    const event = tryAutoActivateSwitchInForm(kyogre, "player");
+    expect(event?.type).toBe("form-change");
+    expect(kyogre.form).toBe("primal-kyogre");
+  });
+
+  it("does not transform without the matching orb", () => {
+    const groudon = buildPokemon("groudon", "groudon", ["earthquake"]);
+    expect(tryAutoActivateSwitchInForm(groudon, "player")).toBeUndefined();
+    expect(groudon.form).toBeUndefined();
+  });
+
+  it("Zacian becomes Crowned Sword forme while holding the Rusted Sword", () => {
+    const zacian = buildPokemon("zacian", "zacian", ["close-combat"], 50, { item: "rusted-sword" });
+    tryAutoActivateSwitchInForm(zacian, "player");
+    expect(zacian.form).toBe("zacian-crowned");
+  });
+
+  it("Zamazenta becomes Crowned Shield forme while holding the Rusted Shield", () => {
+    const zamazenta = buildPokemon("zamazenta", "zamazenta", ["close-combat"], 50, { item: "rusted-shield" });
+    tryAutoActivateSwitchInForm(zamazenta, "player");
+    expect(zamazenta.form).toBe("zamazenta-crowned");
+  });
+
+  it("Giratina takes its Origin Forme while holding the Griseous Orb", () => {
+    const giratina = buildPokemon("giratina", "giratina-altered", ["shadow-ball"], 50, { item: "griseous-orb" });
+    tryAutoActivateSwitchInForm(giratina, "player");
+    expect(giratina.form).toBe("giratina-origin");
+  });
+
+  it("is a no-op once already in the transformed form (doesn't re-fire on repeated switch-ins)", () => {
+    const groudon = buildPokemon("groudon", "groudon", ["earthquake"], 50, { item: "red-orb" });
+    tryAutoActivateSwitchInForm(groudon, "player");
+    expect(tryAutoActivateSwitchInForm(groudon, "player")).toBeUndefined();
+  });
+});
+
+describe("Ultra Necrozma (reuses the mega mechanic)", () => {
+  it("activates like a Mega Evolution while holding the Ultranecrozium Z", () => {
+    const necrozma = buildPokemon("necrozma", "necrozma", ["photon-geyser"], 50, { item: "ultranecrozium-z" });
+    const side = createBattleSide([necrozma]);
+    expect(canActivateMechanic(necrozma, side, "mega", STANDARD_RULES)).toEqual({ ok: true });
+
+    const event = activateMechanic(necrozma, side, "player", "mega");
+    expect(event).toEqual({ type: "form-change", side: "player", pokemonId: necrozma.id, form: "ultra-necrozma", cause: "mega" });
+    expect(necrozma.form).toBe("ultra-necrozma");
   });
 });

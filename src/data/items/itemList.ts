@@ -1,4 +1,7 @@
 import { MEGA_EVOLUTIONS } from "@/data/pokemon/megaEvolutions";
+import { SWITCH_IN_FORMS } from "@/data/pokemon/switchInForms";
+import { ULTRA_BURST_FORMS } from "@/data/pokemon/ultraBurst";
+import type { PokemonForm } from "@/types/pokemon";
 import type { Item } from "@/types/items";
 
 function titleCaseFromSlug(slug: string): string {
@@ -9,17 +12,22 @@ function titleCaseFromSlug(slug: string): string {
 }
 
 /**
- * One inert stone item per item-gated Mega Evolution in the table — kept in sync automatically
- * (no id can drift out of sync with a form's `requiredItem`, since both come from the same
- * source). Rayquaza's entry has no `requiredItem` (it's gated on knowing Dragon Ascent instead,
- * see megaEvolutions.ts), so it's filtered out here rather than generating a bogus stone item.
+ * One inert stone/orb item per item-gated form-changing entry across the Mega Evolution, Primal
+ * Reversion/Crowned-forme/Origin-forme, and Ultra Burst tables — kept in sync automatically (no
+ * id can drift out of sync with a form's `requiredItem`, since both come from the same source).
+ * Rayquaza's Mega entry has no `requiredItem` (it's gated on knowing Dragon Ascent instead, see
+ * megaEvolutions.ts), so it's filtered out here rather than generating a bogus stone item.
  */
-const MEGA_STONE_ITEMS: Item[] = MEGA_EVOLUTIONS.filter(({ form }) => form.requiredItem).map(({ form }) => ({
-  id: form.requiredItem!,
-  name: titleCaseFromSlug(form.requiredItem!),
-  triggers: [],
-  effects: [],
-}));
+const FORM_TABLES: { speciesId: string; form: PokemonForm }[] = [...MEGA_EVOLUTIONS, ...SWITCH_IN_FORMS, ...ULTRA_BURST_FORMS];
+
+const FORM_GATING_ITEMS: Item[] = Array.from(
+  new Map(
+    FORM_TABLES.filter(({ form }) => form.requiredItem).map(({ form }) => [
+      form.requiredItem!,
+      { id: form.requiredItem!, name: titleCaseFromSlug(form.requiredItem!), triggers: [], effects: [] } satisfies Item,
+    ])
+  ).values()
+);
 
 /** Data-driven held items. Engine code dispatches on `effects[].kind`, never on item id/name. */
 export const ITEM_LIST: Item[] = [
@@ -56,13 +64,14 @@ export const ITEM_LIST: Item[] = [
     triggers: ["on-lethal-damage"],
     effects: [{ kind: "survive-lethal-hit" }],
   },
-  // Mega Stones and Z-Crystals aren't consumed and don't hook into ItemEngine's damage/heal
-  // triggers at all — MechanicsEngine checks a Pokémon's held item id directly against the
-  // form's `requiredItem` (Mega Stones) or as a general Z-Move unlock marker (Z-Crystal).
+  // Mega Stones, Primal orbs, Crowned/Origin relics, Ultra Burst crystals, and Z-Crystals aren't
+  // consumed and don't hook into ItemEngine's damage/heal triggers at all — MechanicsEngine
+  // checks a Pokémon's held item id directly against the form's `requiredItem`, or (Z-Crystal)
+  // as a general Z-Move unlock marker.
   { id: "charizardite-x", name: "Charizardite X", triggers: [], effects: [] },
   { id: "charizardite-y", name: "Charizardite Y", triggers: [], effects: [] },
   { id: "lucarionite", name: "Lucarionite", triggers: [], effects: [] },
   { id: "galladite", name: "Galladite", triggers: [], effects: [] },
   { id: "z-crystal", name: "Z-Crystal", triggers: [], effects: [] },
-  ...MEGA_STONE_ITEMS,
+  ...FORM_GATING_ITEMS,
 ];

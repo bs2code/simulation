@@ -159,6 +159,23 @@ export function tryAutoActivateBattleBond(
   return activateMechanic(pokemon, side, sideId, "battle-bond");
 }
 
+/**
+ * Some forms (Primal Reversion, Zacian/Zamazenta's Crowned formes, Giratina's Origin Forme)
+ * aren't a BattleMechanic a player opts into at all — in the real games they're simply whichever
+ * form the Pokémon takes the instant it's sent into battle, based on its held item. This checks
+ * for one and applies it, called on every switch-in (initial send-out and mid-battle switches
+ * alike). It's a no-op if the Pokémon already has that form, so re-entering doesn't re-fire it.
+ */
+export function tryAutoActivateSwitchInForm(pokemon: Pokemon, sideId: BattleSideId): BattleEvent | undefined {
+  if (pokemon.fainted) return undefined;
+  const species = getSpecies(pokemon.speciesId);
+  const form = species.forms?.find((f) => f.autoOnSwitchIn && f.requiredItem === pokemon.item);
+  if (!form || pokemon.form === form.id) return undefined;
+  transformStats(pokemon, form.baseStats, false);
+  pokemon.form = form.id;
+  return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form.id, cause: "auto" };
+}
+
 const MAX_Z_MOVE_POWER = 200;
 const Z_MOVE_POWER_MULTIPLIER = 1.5;
 

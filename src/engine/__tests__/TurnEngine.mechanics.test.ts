@@ -100,6 +100,41 @@ describe("TurnEngine: Gigantamax in a real turn", () => {
     expect(current.sides.player.team[0].stats.hp).toBe(maxHpBefore);
     expect(current.log.some((e) => e.type === "form-change" && e.cause === "revert")).toBe(true);
   });
+
+  it("a species with no Gigantamax form can still Dynamax (double HP, no form change) and reverts the same way", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    // Both sides use a non-damaging self-buff move — this test is only about the Dynamax
+    // mechanic itself (HP doubling, no form change, reverting on schedule), not battle outcome,
+    // so nobody should be at risk of fainting along the way.
+    const lucario = buildPokemon("lucario", "lucario", ["swords-dance"]);
+    const blastoise = buildPokemon("blastoise", "blastoise", ["withdraw"]);
+    const state = engine.createBattle([lucario], [blastoise]);
+    const maxHpBefore = lucario.stats.hp;
+
+    let current = engine.submitTurn(
+      state,
+      { type: "move", pokemonId: lucario.id, moveId: "swords-dance", mechanic: "gigantamax" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(current.sides.player.team[0].stats.hp).toBe(maxHpBefore * 2);
+    expect(current.sides.player.team[0].form).toBeUndefined();
+    expect(current.sides.player.team[0].mechanicState.gigantamaxed).toBe(true);
+
+    current = engine.submitTurn(
+      current,
+      { type: "move", pokemonId: lucario.id, moveId: "swords-dance" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    current = engine.submitTurn(
+      current,
+      { type: "move", pokemonId: lucario.id, moveId: "swords-dance" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+
+    expect(current.sides.player.team[0].mechanicState.gigantamaxed).toBe(false);
+    expect(current.sides.player.team[0].stats.hp).toBe(maxHpBefore);
+  });
 });
 
 describe("TurnEngine: Z-Moves in a real turn", () => {

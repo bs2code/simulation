@@ -1,4 +1,5 @@
 import type { PokemonForm, PokemonSpecies } from "@/types/pokemon";
+import generatedGigantamaxFormsData from "./generated/gigantamax-forms.generated.json";
 import generatedRegionalFormsData from "./generated/regional-forms.generated.json";
 import generatedSpeciesData from "./generated/species.generated.json";
 import { ALTERNATE_FORMS } from "./alternateForms";
@@ -46,16 +47,18 @@ for (const species of SPECIES_LIST) {
 const SPECIES_BY_ID: Map<string, PokemonSpecies> = new Map(ALL_SPECIES.map((s) => [s.id, s]));
 
 // Layer the real Mega Evolution roster, generated regional forms (Alolan/Galarian/Hisuian/
-// Paldean — see scripts/generate-pokedex.ts), the switch-in-locked forms (Primal Reversion,
-// Crowned formes, Giratina's Origin Forme), Necrozma's Ultra Burst, and the team-buildable
-// alternate forms (Deoxys formes, Kyurem fusions), onto whichever species object ended up at
-// that id above (curated or generated). Mewtwo picks up two forms (X and Y) via two Mega table
-// entries.
+// Paldean — see scripts/generate-pokedex.ts), the real Gigantamax roster (see
+// scripts/generate-gigantamax-forms.ts), the switch-in-locked forms (Primal Reversion, Crowned
+// formes, Giratina's Origin Forme), Necrozma's Ultra Burst, and the team-buildable alternate
+// forms (Deoxys formes, Kyurem fusions), onto whichever species object ended up at that id above
+// (curated or generated). Mewtwo picks up two forms (X and Y) via two Mega table entries.
 const GENERATED_REGIONAL_FORMS = generatedRegionalFormsData as { speciesId: string; form: PokemonForm }[];
+const GENERATED_GIGANTAMAX_FORMS = generatedGigantamaxFormsData as { speciesId: string; form: PokemonForm }[];
 
 for (const { speciesId, form } of [
   ...MEGA_EVOLUTIONS,
   ...GENERATED_REGIONAL_FORMS,
+  ...GENERATED_GIGANTAMAX_FORMS,
   ...SWITCH_IN_FORMS,
   ...ULTRA_BURST_FORMS,
   ...ALTERNATE_FORMS,

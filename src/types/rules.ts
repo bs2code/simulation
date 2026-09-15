@@ -8,6 +8,7 @@ export type BattleRules = {
   levelCap: number;
   allowMegaEvolution: boolean;
   allowZMoves: boolean;
+  /** Gates the "gigantamax" BattleMechanic, which covers both plain Dynamax (any Pokémon) and Gigantamax (species with a Gigantamax form transform into it automatically instead). */
   allowGigantamax: boolean;
   allowBattleBond: boolean;
   maxMegaUsesPerBattle: number;

@@ -1,15 +1,29 @@
+import { getSpecies } from "@/data/pokemon";
 import { canActivateMechanic } from "@/engine/MechanicsEngine";
 import type { BattleSideId, BattleState } from "@/types/battle";
 import type { BattleMechanic } from "@/types/mechanics";
+import type { Pokemon } from "@/types/pokemon";
 
 const MECHANIC_LABEL: Record<BattleMechanic, string> = {
   mega: "Mega Evolve",
-  gigantamax: "Gigantamax",
+  gigantamax: "Dynamax",
   "z-move": "Z-Move",
   "battle-bond": "Battle Bond",
 };
 
 const MECHANICS_TO_OFFER: BattleMechanic[] = ["mega", "gigantamax", "z-move"];
+
+/**
+ * In the real games any Pokémon can Dynamax, but the ~30 species with a Gigantamax form always
+ * Gigantamax instead when they do — there's no separate player choice between the two for a
+ * capable species, so the button just reflects whichever one this specific Pokémon will get.
+ */
+function mechanicLabel(mechanic: BattleMechanic, active: Pokemon): string {
+  if (mechanic === "gigantamax" && getSpecies(active.speciesId).forms?.some((f) => f.formCategory === "gigantamax")) {
+    return "Gigantamax";
+  }
+  return MECHANIC_LABEL[mechanic];
+}
 
 /** Toggle row for the mechanics legal for the active Pokémon on `side` right now (if any). */
 export function MechanicToggleRow({
@@ -44,7 +58,7 @@ export function MechanicToggleRow({
               : "border-panel-muted text-ink-muted hover:border-gold hover:text-gold"
           }`}
         >
-          {MECHANIC_LABEL[mechanic]}
+          {mechanicLabel(mechanic, active)}
         </button>
       ))}
     </div>

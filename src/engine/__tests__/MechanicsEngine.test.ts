@@ -91,11 +91,11 @@ describe("activateMechanic: mega evolution", () => {
   });
 });
 
-describe("canActivateMechanic: gigantamax", () => {
-  it("requires the species to have a Gigantamax form", () => {
+describe("canActivateMechanic: gigantamax (Dynamax for any Pokémon, Gigantamax for capable species)", () => {
+  it("succeeds for any Pokémon, even one with no Gigantamax form (a plain Dynamax)", () => {
     const lucario = buildPokemon("lucario", "lucario", ["close-combat"]);
     const side = createBattleSide([lucario]);
-    expect(canActivateMechanic(lucario, side, "gigantamax", STANDARD_RULES).ok).toBe(false);
+    expect(canActivateMechanic(lucario, side, "gigantamax", STANDARD_RULES)).toEqual({ ok: true });
   });
 
   it("succeeds for a species with a Gigantamax form and no item required", () => {
@@ -106,7 +106,7 @@ describe("canActivateMechanic: gigantamax", () => {
 });
 
 describe("activateMechanic: gigantamax", () => {
-  it("doubles max HP while preserving HP percentage, and sets a 3-turn duration", () => {
+  it("Gigantamax-capable species get the form change plus doubled HP", () => {
     const charizard = buildPokemon("charizard", "charizard", ["flamethrower"]);
     const maxHpBefore = charizard.stats.hp;
     charizard.currentHp = Math.floor(maxHpBefore / 2);
@@ -120,6 +120,20 @@ describe("activateMechanic: gigantamax", () => {
     expect(charizard.mechanicState.gigantamaxed).toBe(true);
     expect(charizard.mechanicState.dynamaxTurnsRemaining).toBe(3);
     expect(charizard.form).toBe("gigantamax-charizard");
+  });
+
+  it("a plain Dynamax (no Gigantamax form) doubles HP without changing form", () => {
+    const lucario = buildPokemon("lucario", "lucario", ["close-combat"]);
+    const maxHpBefore = lucario.stats.hp;
+    const side = createBattleSide([lucario]);
+
+    const event = activateMechanic(lucario, side, "player", "gigantamax");
+
+    expect(lucario.stats.hp).toBe(maxHpBefore * 2);
+    expect(lucario.mechanicState.gigantamaxed).toBe(true);
+    expect(lucario.mechanicState.dynamaxTurnsRemaining).toBe(3);
+    expect(lucario.form).toBeUndefined();
+    expect(event).toEqual({ type: "form-change", side: "player", pokemonId: lucario.id, form: undefined, cause: "gigantamax" });
   });
 });
 

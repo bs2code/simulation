@@ -55,12 +55,15 @@ export function canActivateMechanic(
     }
 
     case "gigantamax": {
-      if (!rules.allowGigantamax) return { ok: false, reason: "Gigantamax is disabled by the ruleset" };
+      // In the real games, any Pokémon can Dynamax (double HP, 3 turns); Gigantamax is just what
+      // happens instead, automatically, for the ~30 species with a defined Gigantamax form — the
+      // player never chooses between the two for a given Pokémon. So this mechanic (still called
+      // "gigantamax" internally) is available to everyone, not gated on having a Gigantamax form.
+      if (!rules.allowGigantamax) return { ok: false, reason: "Dynamax is disabled by the ruleset" };
       if (side.mechanicUsage.gigantamax >= rules.maxGigantamaxUsesPerBattle) {
-        return { ok: false, reason: "Gigantamax has already been used the maximum number of times this battle" };
+        return { ok: false, reason: "Dynamax has already been used the maximum number of times this battle" };
       }
-      if (pokemon.mechanicState.gigantamaxed) return { ok: false, reason: "This Pokémon is already Gigantamax" };
-      if (!findForm(pokemon, "gigantamax")) return { ok: false, reason: "This Pokémon cannot Gigantamax" };
+      if (pokemon.mechanicState.gigantamaxed) return { ok: false, reason: "This Pokémon is already Dynamaxed" };
       return { ok: true };
     }
 
@@ -122,13 +125,16 @@ export function activateMechanic(
   }
 
   if (mechanic === "gigantamax") {
-    const form = findForm(pokemon, "gigantamax")!;
-    transformStats(pokemon, form.baseStats, true);
-    pokemon.form = form.id;
+    // A plain Dynamax (no Gigantamax form for this species) only doubles HP — same species,
+    // same stats otherwise, no form id change. A Gigantamax-capable species gets that form's
+    // (identical, per the real games) stats plus the visual/form-id change.
+    const form = findForm(pokemon, "gigantamax");
+    transformStats(pokemon, form ? form.baseStats : getSpecies(pokemon.speciesId).baseStats, true);
+    if (form) pokemon.form = form.id;
     pokemon.mechanicState.gigantamaxed = true;
     pokemon.mechanicState.dynamaxTurnsRemaining = 3;
     side.mechanicUsage.gigantamax += 1;
-    return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form.id, cause: "gigantamax" };
+    return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form?.id, cause: "gigantamax" };
   }
 
   // battle-bond

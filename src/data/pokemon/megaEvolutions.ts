@@ -1,13 +1,14 @@
 import type { PokemonForm } from "@/types/pokemon";
 
 /**
- * The real Mega Evolution roster (Gen 6-7), layered onto whichever species object ends up at
- * that id in data/pokemon/index.ts's merge (curated or generated) — this table only needs to
- * know the mega form itself, not re-supply the species' base data.
+ * The real Mega Evolution roster — the original Gen 6-7 lineup, plus Pokémon Legends: Z-A's new
+ * Mega Evolutions as they're added — layered onto whichever species object ends up at that id in
+ * data/pokemon/index.ts's merge (curated or generated). This table only needs to know the mega
+ * form itself, not re-supply the species' base data.
  *
- * Every Pokémon that can Mega Evolve in the real games is represented here, including Rayquaza —
- * which uniquely unlocks via knowing the move Dragon Ascent rather than holding a Mega Stone, so
- * its entry sets `requiredMove` instead of `requiredItem` (see MechanicsEngine's mega-evolution
+ * Every Gen 6-7 Pokémon that can Mega Evolve is represented here, including Rayquaza — which
+ * uniquely unlocks via knowing the move Dragon Ascent rather than holding a Mega Stone, so its
+ * entry sets `requiredMove` instead of `requiredItem` (see MechanicsEngine's mega-evolution
  * check, which branches on whichever field is present). Not included: Primal Kyogre/Groudon,
  * since Primal Reversion is a distinct mechanic from Mega Evolution in the real games, not
  * modeled by this engine's BattleMechanic union. Charizard, Lucario, and Gallade already have
@@ -541,6 +542,22 @@ export const MEGA_EVOLUTIONS: { speciesId: string; form: PokemonForm }[] = [
       abilities: ["delta-stream"],
       formCategory: "mega",
       requiredMove: "dragon-ascent",
+    },
+  },
+  // Pokémon Legends: Z-A (2026) introduced new Mega Evolutions beyond the original Gen 6-7
+  // roster above, starting with the three Kalos starters plus a handful of others; more may be
+  // added here as they're confirmed. Mega Chesnaught's ability is its own hidden ability
+  // (Bulletproof) promoted to the only one, rather than a wholly new ability.
+  {
+    speciesId: "chesnaught",
+    form: {
+      id: "mega-chesnaught",
+      name: "Mega Chesnaught",
+      types: ["Grass", "Fighting"],
+      baseStats: { hp: 88, attack: 137, defense: 172, specialAttack: 74, specialDefense: 115, speed: 44 },
+      abilities: ["bulletproof"],
+      formCategory: "mega",
+      requiredItem: "chesnaughtite",
     },
   },
 ];

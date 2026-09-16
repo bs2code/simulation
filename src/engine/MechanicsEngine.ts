@@ -119,6 +119,11 @@ export function activateMechanic(
     const form = findAvailableMegaForm(pokemon)!;
     transformStats(pokemon, form.baseStats, false);
     pokemon.form = form.id;
+    // Many Megas replace the holder's ability outright (e.g. Lucario's Steadfast/Inner Focus
+    // becomes Adaptability, Gallade's becomes Inner Focus) — every Mega form in this engine's
+    // data defines exactly one ability, so it always wins outright rather than being offered
+    // as a choice the way a species' own (non-Mega) ability slot can be.
+    pokemon.ability = form.abilities[0];
     pokemon.mechanicState.megaEvolved = true;
     side.mechanicUsage.mega += 1;
     return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form.id, cause: "mega" };
@@ -141,6 +146,7 @@ export function activateMechanic(
   const form = findForm(pokemon, "battle-bond")!;
   transformStats(pokemon, form.baseStats, false);
   pokemon.form = form.id;
+  pokemon.ability = form.abilities[0];
   pokemon.mechanicState.battleBondActivated = true;
   return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form.id, cause: "battle-bond" };
 }
@@ -179,6 +185,10 @@ export function tryAutoActivateSwitchInForm(pokemon: Pokemon, sideId: BattleSide
   if (!form || pokemon.form === form.id) return undefined;
   transformStats(pokemon, form.baseStats, false);
   pokemon.form = form.id;
+  // Primal Reversion in particular always swaps the ability (Drought -> Desolate Land, Drizzle
+  // -> Primordial Sea); Crowned formes and Origin Forme happen to keep the same one, but setting
+  // it unconditionally from the form's data is correct either way and needs no per-form special-casing.
+  pokemon.ability = form.abilities[0];
   return { type: "form-change", side: sideId, pokemonId: pokemon.id, form: form.id, cause: "auto" };
 }
 

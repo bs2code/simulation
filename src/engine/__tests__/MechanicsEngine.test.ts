@@ -89,6 +89,20 @@ describe("activateMechanic: mega evolution", () => {
     expect(lucario.currentHp / lucario.stats.hp).toBeCloseTo(hpRatioBefore, 1);
     expect(event).toEqual({ type: "form-change", side: "player", pokemonId: lucario.id, form: "mega-lucario", cause: "mega" });
   });
+
+  it("replaces the holder's ability with the Mega form's (Lucario: Steadfast/Inner Focus -> Adaptability)", () => {
+    const lucario = buildPokemon("lucario", "lucario", ["close-combat"], 50, { item: "lucarionite", ability: "inner-focus" });
+    const side = createBattleSide([lucario]);
+    activateMechanic(lucario, side, "player", "mega");
+    expect(lucario.ability).toBe("adaptability");
+  });
+
+  it("replaces the holder's ability with the Mega form's (Gallade: Steadfast/Sharpness -> Inner Focus)", () => {
+    const gallade = buildPokemon("gallade", "gallade", ["close-combat"], 50, { item: "galladite", ability: "sharpness" });
+    const side = createBattleSide([gallade]);
+    activateMechanic(gallade, side, "player", "mega");
+    expect(gallade.ability).toBe("inner-focus");
+  });
 });
 
 describe("canActivateMechanic: gigantamax (Dynamax for any Pokémon, Gigantamax for capable species)", () => {
@@ -242,6 +256,7 @@ describe("tryAutoActivateSwitchInForm: Primal Reversion, Crowned formes, Origin 
     expect(event).toEqual({ type: "form-change", side: "player", pokemonId: groudon.id, form: "primal-groudon", cause: "auto" });
     expect(groudon.form).toBe("primal-groudon");
     expect(groudon.stats.attack).toBeGreaterThan(150); // base Groudon Atk stat line is lower
+    expect(groudon.ability).toBe("desolate-land"); // base Groudon's ability is Drought
   });
 
   it("Primal Kyogre transforms automatically while holding the Blue Orb", () => {

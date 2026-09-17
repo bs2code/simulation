@@ -24,7 +24,13 @@ import {
   checkCanAct,
   processEndOfTurn,
 } from "./EffectEngine";
-import { getItemRecoilAfterAttackFraction, hasSurviveLethalHit } from "./ItemEngine";
+import {
+  getChoiceLockedMoveId,
+  getItemRecoilAfterAttackFraction,
+  getItemSpeedMultiplier,
+  hasSurviveLethalHit,
+  lockChoiceItemMove,
+} from "./ItemEngine";
 import {
   activateMechanic,
   activateZMove,
@@ -161,6 +167,10 @@ export class TurnEngine {
         if (battleMove.currentPP <= 0) {
           throw new Error(`"${active.id}" has no PP left for "${action.moveId}"`);
         }
+        const lockedMoveId = getChoiceLockedMoveId(active);
+        if (lockedMoveId && lockedMoveId !== action.moveId) {
+          throw new Error(`"${active.id}" is locked into "${lockedMoveId}" by its held item`);
+        }
       }
       if (action.mechanic) {
         const check = canActivateMechanic(active, side, action.mechanic, state.rules);
@@ -229,6 +239,7 @@ export class TurnEngine {
     const effectiveSpeed = (pokemon: Pokemon): number => {
       let speed = applyStatStage(pokemon.stats.speed, pokemon.statStages.speed);
       speed = Math.floor(speed * getWeatherStatMultiplier(pokemon, state.weather.id, "speed"));
+      speed = Math.floor(speed * getItemSpeedMultiplier(pokemon));
       if (pokemon.status.condition === "paralysis") speed = Math.floor(speed * 0.5);
       return speed;
     };
@@ -256,6 +267,7 @@ export class TurnEngine {
 
     const battleMove = attacker.moves.find((m) => m.moveId === move.id);
     if (battleMove) battleMove.currentPP = Math.max(0, battleMove.currentPP - 1);
+    if (move.id !== STRUGGLE_MOVE_ID) lockChoiceItemMove(attacker, move.id);
 
     events.push({ type: "move-used", side, pokemonId: attacker.id, moveId: move.id });
 

@@ -230,4 +230,6 @@ export type Pokemon = {
   fainted: boolean;
   form?: string;
   mechanicState: MechanicState;
+  /** Set by a Choice item the first time its holder uses a move this battle; cleared on switch-out. */
+  choiceLockedMoveId?: string;
 };

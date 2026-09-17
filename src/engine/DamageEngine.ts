@@ -10,7 +10,7 @@ import {
   getLowHpStabMultiplier,
   getWeatherStatMultiplier,
 } from "./AbilityEngine";
-import { getItemDamageMultiplier, getItemTypePowerBoost } from "./ItemEngine";
+import { getItemDamageMultiplier, getItemOffensiveStatMultiplier, getItemTypePowerBoost } from "./ItemEngine";
 import { getTerrainMultiplier, getWeatherMultiplier } from "./WeatherEngine";
 
 const BASE_CRITICAL_HIT_CHANCE = 1 / 24;
@@ -115,8 +115,9 @@ export class DamageEngine {
 
     const specialAttackAbilityMultiplier =
       move.category === "special" ? getWeatherStatMultiplier(attacker, weather, "specialAttack") : 1;
+    const itemOffensiveMultiplier = getItemOffensiveStatMultiplier(attacker, move.category);
     const offensiveStat = Math.floor(
-      getOffensiveStat(attacker, move, critical) * specialAttackAbilityMultiplier
+      getOffensiveStat(attacker, move, critical) * specialAttackAbilityMultiplier * itemOffensiveMultiplier
     );
     const defensiveStat = getDefensiveStat(defender, move, critical);
 

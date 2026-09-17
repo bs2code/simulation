@@ -1,5 +1,6 @@
 import { findItem } from "@/data/items";
 import type { ItemEffect, ItemTrigger } from "@/types/items";
+import type { MoveCategory } from "@/types/moves";
 import type { Pokemon, PokemonType } from "@/types/pokemon";
 
 /** Stateless held-item lookups, mirroring AbilityEngine: dispatch on effect kind, not item id. */
@@ -38,4 +39,35 @@ export function getItemEndOfTurnHealFraction(pokemon: Pokemon): number {
 
 export function hasSurviveLethalHit(pokemon: Pokemon): boolean {
   return effectsAt(pokemon, "on-lethal-damage").some((e) => e.kind === "survive-lethal-hit");
+}
+
+/** Choice Band (attack) / Choice Specs (specialAttack) — 1.5x the holder's offensive stat for that category. */
+export function getItemOffensiveStatMultiplier(pokemon: Pokemon, category: MoveCategory): number {
+  if (category === "status") return 1;
+  const stat = category === "physical" ? "attack" : "specialAttack";
+  return effectsAt(pokemon, "on-damage-calc-attacker")
+    .filter((e): e is Extract<ItemEffect, { kind: "stat-multiplier" }> => e.kind === "stat-multiplier" && e.stat === stat)
+    .reduce((multiplier, e) => multiplier * e.multiplier, 1);
+}
+
+/** Choice Scarf — 1.5x the holder's Speed for turn-order purposes. */
+export function getItemSpeedMultiplier(pokemon: Pokemon): number {
+  return effectsAt(pokemon, "speed-calc")
+    .filter((e): e is Extract<ItemEffect, { kind: "stat-multiplier" }> => e.kind === "stat-multiplier" && e.stat === "speed")
+    .reduce((multiplier, e) => multiplier * e.multiplier, 1);
+}
+
+/** True for a Choice item (Band/Specs/Scarf) — not trigger-gated, so it bypasses `effectsAt`. */
+function hasChoiceLockEffect(pokemon: Pokemon): boolean {
+  return findItem(pokemon.item)?.effects.some((e) => e.kind === "choice-lock") ?? false;
+}
+
+/** The move a Choice item holder is locked into, or undefined if unlocked or not holding one. */
+export function getChoiceLockedMoveId(pokemon: Pokemon): string | undefined {
+  return hasChoiceLockEffect(pokemon) ? pokemon.choiceLockedMoveId : undefined;
+}
+
+/** Locks a Choice item holder into `moveId` the first time it's used this battle (no-op otherwise). */
+export function lockChoiceItemMove(pokemon: Pokemon, moveId: string): void {
+  if (hasChoiceLockEffect(pokemon)) pokemon.choiceLockedMoveId = moveId;
 }

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  getChoiceLockedMoveId,
   getItemDamageMultiplier,
   getItemEndOfTurnHealFraction,
+  getItemOffensiveStatMultiplier,
   getItemRecoilAfterAttackFraction,
+  getItemSpeedMultiplier,
   getItemTypePowerBoost,
   hasSurviveLethalHit,
+  lockChoiceItemMove,
 } from "../ItemEngine";
 import { buildPokemon } from "./testHelpers";
 
@@ -36,5 +40,40 @@ describe("ItemEngine", () => {
   it("Focus Sash lets its holder survive a lethal hit", () => {
     const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt"], 50, { item: "focus-sash" });
     expect(hasSurviveLethalHit(pikachu)).toBe(true);
+  });
+
+  it("Choice Band boosts physical damage 1.5x but not special", () => {
+    const charizard = buildPokemon("charizard", "charizard", ["ember"], 50, { item: "choice-band" });
+    expect(getItemOffensiveStatMultiplier(charizard, "physical")).toBe(1.5);
+    expect(getItemOffensiveStatMultiplier(charizard, "special")).toBe(1);
+    expect(getItemOffensiveStatMultiplier(charizard, "status")).toBe(1);
+  });
+
+  it("Choice Specs boosts special damage 1.5x but not physical", () => {
+    const charizard = buildPokemon("charizard", "charizard", ["ember"], 50, { item: "choice-specs" });
+    expect(getItemOffensiveStatMultiplier(charizard, "special")).toBe(1.5);
+    expect(getItemOffensiveStatMultiplier(charizard, "physical")).toBe(1);
+  });
+
+  it("Choice Scarf boosts Speed 1.5x", () => {
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt"], 50, { item: "choice-scarf" });
+    expect(getItemSpeedMultiplier(pikachu)).toBe(1.5);
+  });
+
+  it("a Choice item holder isn't locked into anything until it uses a move", () => {
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt", "quick-attack"], 50, { item: "choice-band" });
+    expect(getChoiceLockedMoveId(pikachu)).toBeUndefined();
+  });
+
+  it("lockChoiceItemMove locks a Choice item holder into the move it just used", () => {
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt", "quick-attack"], 50, { item: "choice-band" });
+    lockChoiceItemMove(pikachu, "thunderbolt");
+    expect(getChoiceLockedMoveId(pikachu)).toBe("thunderbolt");
+  });
+
+  it("lockChoiceItemMove is a no-op for a Pokémon not holding a Choice item", () => {
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt"], 50, { item: "leftovers" });
+    lockChoiceItemMove(pikachu, "thunderbolt");
+    expect(getChoiceLockedMoveId(pikachu)).toBeUndefined();
   });
 });

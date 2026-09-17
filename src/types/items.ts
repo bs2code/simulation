@@ -3,6 +3,7 @@ import type { PokemonType } from "./pokemon";
 export type ItemTrigger =
   | "end-of-turn"
   | "on-damage-calc-attacker"
+  | "speed-calc"
   | "after-dealing-damage"
   | "on-lethal-damage";
 
@@ -16,7 +17,14 @@ export type ItemEffect =
   /** Boosts moves of a specific type (Charcoal, Mystic Water, etc). */
   | { kind: "type-power-boost"; type: PokemonType; multiplier: number }
   /** Survive a hit that would otherwise KO from full HP, at 1 HP, then the item is consumed (Focus Sash). */
-  | { kind: "survive-lethal-hit" };
+  | { kind: "survive-lethal-hit" }
+  /** Multiplies one stat outright (Choice Band/Specs/Scarf). */
+  | { kind: "stat-multiplier"; stat: "attack" | "specialAttack" | "speed"; multiplier: number }
+  /**
+   * Locks the holder into repeating whichever move it used this turn until it switches out
+   * (Choice Band/Specs/Scarf) — see ItemEngine's getChoiceLockedMoveId/lockChoiceItemMove.
+   */
+  | { kind: "choice-lock" };
 
 export type Item = {
   id: string;

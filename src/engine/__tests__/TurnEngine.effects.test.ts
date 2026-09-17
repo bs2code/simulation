@@ -235,3 +235,103 @@ describe("TurnEngine: Struggle", () => {
     expect(struggler.currentHp).toBeLessThanOrEqual(maxHp - Math.floor(maxHp * 0.25));
   });
 });
+
+describe("TurnEngine: Choice items in a real battle", () => {
+  it("locks the holder into its first move and rejects switching to a different one next turn", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt", "quick-attack"], 100, { item: "choice-band" });
+    const blastoise = buildPokemon("blastoise", "blastoise", ["withdraw"], 100);
+    const state = engine.createBattle([pikachu], [blastoise]);
+
+    const afterTurn1 = engine.submitTurn(
+      state,
+      { type: "move", pokemonId: pikachu.id, moveId: "thunderbolt" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(afterTurn1.sides.player.team[0].choiceLockedMoveId).toBe("thunderbolt");
+
+    expect(() =>
+      engine.submitTurn(
+        afterTurn1,
+        { type: "move", pokemonId: pikachu.id, moveId: "quick-attack" },
+        { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+      )
+    ).toThrow(/locked into "thunderbolt"/);
+
+    // The locked move itself is still legal.
+    const afterTurn2 = engine.submitTurn(
+      afterTurn1,
+      { type: "move", pokemonId: pikachu.id, moveId: "thunderbolt" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(afterTurn2.sides.player.team[0].choiceLockedMoveId).toBe("thunderbolt");
+  });
+
+  it("clears the lock once the holder switches out, freeing it to pick any move on return", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const pikachu = buildPokemon("pikachu", "pikachu", ["thunderbolt", "quick-attack"], 100, { item: "choice-band" });
+    const eevee = buildPokemon("eevee", "eevee", ["tackle"], 100);
+    const blastoise = buildPokemon("blastoise", "blastoise", ["withdraw"], 100);
+    let state = engine.createBattle([pikachu, eevee], [blastoise]);
+
+    state = engine.submitTurn(
+      state,
+      { type: "move", pokemonId: pikachu.id, moveId: "thunderbolt" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(state.sides.player.team[0].choiceLockedMoveId).toBe("thunderbolt");
+
+    state = engine.submitTurn(
+      state,
+      { type: "switch", pokemonId: eevee.id },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(state.sides.player.team.find((p) => p.id === pikachu.id)!.choiceLockedMoveId).toBeUndefined();
+
+    state = engine.submitTurn(
+      state,
+      { type: "switch", pokemonId: pikachu.id },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    // Back in, unlocked — free to pick the other move this time.
+    state = engine.submitTurn(
+      state,
+      { type: "move", pokemonId: pikachu.id, moveId: "quick-attack" },
+      { type: "move", pokemonId: blastoise.id, moveId: "withdraw" }
+    );
+    expect(state.sides.player.team.find((p) => p.id === pikachu.id)!.choiceLockedMoveId).toBe("quick-attack");
+  });
+
+  it("boosts damage output for the appropriate category", () => {
+    const rng = new SeededRNG(1);
+    const engine = new BattleEngine(rng);
+    const bandedPikachu = buildPokemon("banded", "pikachu", ["quick-attack"], 100, { item: "choice-band" });
+    const plainPikachu = buildPokemon("plain", "pikachu", ["quick-attack"], 100);
+    const blastoiseA = buildPokemon("blastoise-a", "blastoise", ["withdraw"], 100);
+    const blastoiseB = buildPokemon("blastoise-b", "blastoise", ["withdraw"], 100);
+
+    const bandedState = engine.createBattle([bandedPikachu], [blastoiseA]);
+    const plainState = engine.createBattle([plainPikachu], [blastoiseB]);
+
+    const bandedResult = engine.submitTurn(
+      bandedState,
+      { type: "move", pokemonId: bandedPikachu.id, moveId: "quick-attack", },
+      { type: "move", pokemonId: blastoiseA.id, moveId: "withdraw" }
+    );
+    const plainResult = engine.submitTurn(
+      plainState,
+      { type: "move", pokemonId: plainPikachu.id, moveId: "quick-attack" },
+      { type: "move", pokemonId: blastoiseB.id, moveId: "withdraw" }
+    );
+
+    const bandedDamage = bandedResult.log.find((e) => e.type === "damage");
+    const plainDamage = plainResult.log.find((e) => e.type === "damage");
+    expect(bandedDamage?.type).toBe("damage");
+    expect(plainDamage?.type).toBe("damage");
+    if (bandedDamage?.type === "damage" && plainDamage?.type === "damage") {
+      expect(bandedDamage.amount).toBeGreaterThan(plainDamage.amount);
+    }
+  });
+});

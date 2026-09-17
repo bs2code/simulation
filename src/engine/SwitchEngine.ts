@@ -21,6 +21,7 @@ export function performSwitch(side: BattleSide, sideId: BattleSideId, teamIndex:
   const events: BattleEvent[] = [];
   const outgoing = side.team[side.activePokemonIndex];
   if (outgoing && !outgoing.fainted) {
+    outgoing.choiceLockedMoveId = undefined;
     events.push({ type: "switch-out", side: sideId, pokemonId: outgoing.id });
   }
   side.activePokemonIndex = teamIndex;

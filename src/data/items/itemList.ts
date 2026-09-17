@@ -64,6 +64,24 @@ export const ITEM_LIST: Item[] = [
     triggers: ["on-lethal-damage"],
     effects: [{ kind: "survive-lethal-hit" }],
   },
+  {
+    id: "choice-band",
+    name: "Choice Band",
+    triggers: ["on-damage-calc-attacker"],
+    effects: [{ kind: "stat-multiplier", stat: "attack", multiplier: 1.5 }, { kind: "choice-lock" }],
+  },
+  {
+    id: "choice-specs",
+    name: "Choice Specs",
+    triggers: ["on-damage-calc-attacker"],
+    effects: [{ kind: "stat-multiplier", stat: "specialAttack", multiplier: 1.5 }, { kind: "choice-lock" }],
+  },
+  {
+    id: "choice-scarf",
+    name: "Choice Scarf",
+    triggers: ["speed-calc"],
+    effects: [{ kind: "stat-multiplier", stat: "speed", multiplier: 1.5 }, { kind: "choice-lock" }],
+  },
   // Mega Stones, Primal orbs, Crowned/Origin relics, Ultra Burst crystals, and Z-Crystals aren't
   // consumed and don't hook into ItemEngine's damage/heal triggers at all — MechanicsEngine
   // checks a Pokémon's held item id directly against the form's `requiredItem`, or (Z-Crystal)

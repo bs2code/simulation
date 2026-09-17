@@ -63,5 +63,6 @@ export function createPokemon(config: CreatePokemonConfig): Pokemon {
     fainted: false,
     form: config.form,
     mechanicState: createDefaultMechanicState(),
+    choiceLockedMoveId: undefined,
   };
 }

@@ -48,15 +48,20 @@ export function PokemonSlotEditor({
   const startableForms = species.forms?.filter((f) => STARTABLE_FORM_CATEGORIES.has(f.formCategory)) ?? [];
   const activeForm = draft.form ? species.forms?.find((f) => f.id === draft.form) : undefined;
   const abilityOptions = activeForm?.abilities ?? species.abilities;
+  const availableMoves = activeForm?.moves ?? species.moves;
 
   const setSpecies = (speciesId: string) => setDraft(defaultConfigForSpecies(speciesId));
 
   const setForm = (formId: string) => {
     const form = formId ? species.forms?.find((f) => f.id === formId) : undefined;
+    const nextAvailableMoves = form?.moves ?? species.moves;
     setDraft((prev) => ({
       ...prev,
       form: formId || undefined,
       ability: form ? form.abilities[0] : species.abilities[0],
+      // Drop any selected move this form can't actually learn (regional forms can have a
+      // different movepool from the base species — e.g. Hisuian Arcanine vs. regular Arcanine).
+      moveIds: prev.moveIds.filter((m) => nextAvailableMoves.includes(m)),
     }));
   };
 
@@ -171,7 +176,7 @@ export function PokemonSlotEditor({
           Moves <span className="text-panel-ink/60">({draft.moveIds.length}/{MAX_MOVES})</span>
         </p>
         <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-          {species.moves.map((moveId) => {
+          {availableMoves.map((moveId) => {
             const move = getMove(moveId);
             const selected = draft.moveIds.includes(moveId);
             const disabled = !selected && draft.moveIds.length >= MAX_MOVES;

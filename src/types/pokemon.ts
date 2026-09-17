@@ -148,6 +148,8 @@ export type PokemonForm = {
   types: PokemonType[];
   baseStats: Stats;
   abilities: string[];
+  /** Move ids this form can legally learn, if different from the base species' (regional forms only — e.g. Hisuian Arcanine's own movepool includes Head Smash). Falls back to the species' `moves` when omitted. */
+  moves?: string[];
   /** e.g. "mega", "gigantamax", "regional" — used by the mechanics engine to gate access. */
   formCategory:
     | "mega"

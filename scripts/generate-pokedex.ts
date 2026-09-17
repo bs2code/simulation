@@ -19,9 +19,12 @@
  * Hisuian/Paldean — identified by PokeAPI's own `-alola`/`-galar`/`-hisui`/`-paldea` identifier
  * suffixes) are pulled too and attached as PokemonForms with no requiredItem, since — unlike
  * Mega/Gigantamax — they're a permanent alternate version chosen at team-build time, not a
- * mid-battle transformation. Mega Evolutions and Gigantamax beyond the hand-curated roster are
- * still not covered here (see data/pokemon/megaEvolutions.ts for those, hand-curated instead
- * since Mega forms need a requiredItem/stone this script has no reliable way to infer).
+ * mid-battle transformation. Each regional form gets its own movepool (its PokeAPI pokemon id's
+ * own pokemon_moves.csv rows, not the base species') — they can differ, e.g. Hisuian Arcanine
+ * learns Head Smash, which regular Arcanine cannot. Mega Evolutions and Gigantamax beyond the
+ * hand-curated roster are still not covered here (see data/pokemon/megaEvolutions.ts for those,
+ * hand-curated instead since Mega forms need a requiredItem/stone this script has no reliable
+ * way to infer).
  *
  * Usage: npx tsx scripts/generate-pokedex.ts
  * (Downloaded CSVs are cached under .cache/pokedex-csv/, gitignored, so re-runs are fast.)
@@ -384,6 +387,7 @@ async function main() {
       types: PokemonType[];
       baseStats: { hp: number; attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number };
       abilities: string[];
+      moves: string[];
       formCategory: string;
     };
   }[] = [];
@@ -402,7 +406,11 @@ async function main() {
     const baseStats = statsByPokemonId.get(row.id);
     const types = (typesByPokemonId.get(row.id) ?? []).sort((a, b) => a.slot - b.slot).map((t) => t.type);
     const abilities = abilitiesByPokemonId.get(row.id) ?? [];
-    if (!baseSpeciesId || !baseStats || types.length === 0 || abilities.length === 0) {
+    // Each regional form has its own PokeAPI pokemon id, with its own movepool rows in
+    // pokemon_moves.csv (already loaded into movesByPokemonId above) — distinct from the base
+    // species' (e.g. Hisuian Arcanine can learn Head Smash, which regular Arcanine cannot).
+    const moves = Array.from(movesByPokemonId.get(row.id) ?? []);
+    if (!baseSpeciesId || !baseStats || types.length === 0 || abilities.length === 0 || moves.length === 0) {
       skippedRegionalIncomplete++;
       continue;
     }
@@ -427,6 +435,7 @@ async function main() {
           speed: baseStats.speed ?? 1,
         },
         abilities,
+        moves,
         formCategory: match.category,
       },
     });

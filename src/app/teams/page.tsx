@@ -7,7 +7,7 @@ import { getMove } from "@/data/moves";
 import { getSpecies } from "@/data/pokemon";
 import { PokemonSlotEditor } from "@/components/PokemonSlotEditor";
 import { TypeBadge } from "@/components/TypeBadge";
-import { isTeamComplete, useTeamSlot, type TeamSlot } from "@/lib/teamStorage";
+import { isTeamComplete, useQuickTeams, useTeamSlot, type TeamSlot } from "@/lib/teamStorage";
 import { STANDARD_RULES } from "@/types/rules";
 import type { CreatePokemonConfig } from "@/utils/createPokemon";
 
@@ -15,6 +15,7 @@ const TEAM_SIZE = STANDARD_RULES.teamSize;
 
 function TeamPanel({ slot }: { slot: TeamSlot }) {
   const { team, loaded, save } = useTeamSlot(slot);
+  const { quickTeams, saveQuickTeam, deleteQuickTeam } = useQuickTeams();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   if (!loaded) {
@@ -42,6 +43,24 @@ function TeamPanel({ slot }: { slot: TeamSlot }) {
     setEditingIndex(null);
   };
 
+  const saveAsQuickTeam = () => {
+    if (team.members.length === 0) return;
+    const name = window.prompt("Name this Quick Team:", team.name);
+    if (!name) return;
+    saveQuickTeam(name, team.members);
+  };
+
+  const applyQuickTeam = (quickTeamName: string, members: CreatePokemonConfig[]) => {
+    if (
+      team.members.length > 0 &&
+      !window.confirm(`Replace ${team.name}'s current Pokémon with "${quickTeamName}"? This can't be undone.`)
+    ) {
+      return;
+    }
+    save({ ...team, members });
+    setEditingIndex(null);
+  };
+
   return (
     <section className="flex-1">
       <div className="mb-3 flex items-center justify-between">
@@ -51,12 +70,38 @@ function TeamPanel({ slot }: { slot: TeamSlot }) {
             {team.members.length}/{TEAM_SIZE} {complete ? "· Ready" : ""}
           </span>
           {team.members.length > 0 && (
-            <button type="button" onClick={clearTeam} className="text-xs text-ink-muted underline hover:text-danger">
-              Clear team
-            </button>
+            <>
+              <button type="button" onClick={saveAsQuickTeam} className="text-xs text-ink-muted underline hover:text-ink">
+                Save as Quick Team
+              </button>
+              <button type="button" onClick={clearTeam} className="text-xs text-ink-muted underline hover:text-danger">
+                Clear team
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {quickTeams.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border-2 border-dashed border-panel-muted/60 p-2.5">
+          <span className="text-xs text-ink-muted">Quick add:</span>
+          {quickTeams.map((qt) => (
+            <span key={qt.id} className="flex items-center gap-1 rounded-full border-2 border-panel-muted/60 py-0.5 pl-2.5 pr-1 text-xs">
+              <button type="button" onClick={() => applyQuickTeam(qt.name, qt.members)} className="text-ink hover:text-gold">
+                {qt.name} ({qt.members.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteQuickTeam(qt.id)}
+                aria-label={`Delete Quick Team "${qt.name}"`}
+                className="px-1 text-ink-muted hover:text-danger"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Array.from({ length: TEAM_SIZE }).map((_, index) => {

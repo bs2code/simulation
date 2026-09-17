@@ -4,6 +4,89 @@ import { useCallback, useSyncExternalStore } from "react";
 import { createPokemon, type CreatePokemonConfig } from "@/utils/createPokemon";
 import type { Pokemon } from "@/types/pokemon";
 
+// ---------------------------------------------------------------------------
+// Quick Teams — named snapshots of a team's members, saved separately from the two live
+// Team A/Team B slots above so a configuration (e.g. today's Team A, exact moves included) can
+// be captured once and re-applied to either slot later without rebuilding it from scratch.
+// ---------------------------------------------------------------------------
+
+export type QuickTeam = {
+  id: string;
+  name: string;
+  members: CreatePokemonConfig[];
+};
+
+const QUICK_TEAMS_KEY = "pbs:quick-teams:v1";
+const EMPTY_QUICK_TEAMS: QuickTeam[] = [];
+
+function readQuickTeamsFromStorage(): QuickTeam[] {
+  if (typeof window === "undefined") return EMPTY_QUICK_TEAMS;
+  try {
+    const raw = window.localStorage.getItem(QUICK_TEAMS_KEY);
+    if (!raw) return EMPTY_QUICK_TEAMS;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return EMPTY_QUICK_TEAMS;
+    return parsed as QuickTeam[];
+  } catch {
+    return EMPTY_QUICK_TEAMS;
+  }
+}
+
+let quickTeamsCache: QuickTeam[] | undefined;
+const quickTeamsListeners = new Set<() => void>();
+
+function getCachedQuickTeams(): QuickTeam[] {
+  if (!quickTeamsCache) quickTeamsCache = readQuickTeamsFromStorage();
+  return quickTeamsCache;
+}
+
+function writeQuickTeams(teams: QuickTeam[]): void {
+  quickTeamsCache = teams;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(QUICK_TEAMS_KEY, JSON.stringify(teams));
+    } catch {
+      // Private browsing / quota exceeded — the quick team just won't persist across reloads.
+    }
+  }
+  for (const listener of quickTeamsListeners) listener();
+}
+
+/** Saves `members` as a new named Quick Team (a snapshot — later edits to the source team don't affect it). */
+export function saveQuickTeam(name: string, members: CreatePokemonConfig[]): void {
+  const quickTeam: QuickTeam = { id: `qt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, members };
+  writeQuickTeams([...getCachedQuickTeams(), quickTeam]);
+}
+
+export function deleteQuickTeam(id: string): void {
+  writeQuickTeams(getCachedQuickTeams().filter((t) => t.id !== id));
+}
+
+function subscribeQuickTeams(callback: () => void): () => void {
+  quickTeamsListeners.add(callback);
+  const onStorageEvent = (event: StorageEvent) => {
+    if (event.key === QUICK_TEAMS_KEY) {
+      quickTeamsCache = undefined;
+      callback();
+    }
+  };
+  window.addEventListener("storage", onStorageEvent);
+  return () => {
+    quickTeamsListeners.delete(callback);
+    window.removeEventListener("storage", onStorageEvent);
+  };
+}
+
+/** Reactive access to the saved Quick Teams list for client components. */
+export function useQuickTeams() {
+  const quickTeams = useSyncExternalStore(
+    subscribeQuickTeams,
+    getCachedQuickTeams,
+    () => EMPTY_QUICK_TEAMS
+  );
+  return { quickTeams, saveQuickTeam, deleteQuickTeam };
+}
+
 export type TeamSlot = "A" | "B";
 
 /**

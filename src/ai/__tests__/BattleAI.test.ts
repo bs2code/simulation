@@ -190,3 +190,49 @@ describe("BattleAI.chooseSwitchReplacement", () => {
     expect(choices.size).toBeGreaterThan(1);
   });
 });
+
+describe("BattleAI: respects a Choice item lock", () => {
+  it("only ever submits the locked move, across every difficulty and many seeds", () => {
+    const engine = new BattleEngine(new SeededRNG(1));
+    const leafeon = buildPokemon("leafeon", "leafeon", ["knock-off", "quick-attack", "swords-dance"], 50, {
+      item: "choice-band",
+    });
+    leafeon.choiceLockedMoveId = "knock-off";
+    const opponent = buildPokemon("opp", "blastoise", ["tackle"]);
+    const state = engine.createBattle([leafeon], [opponent]);
+
+    for (const difficulty of ["easy", "normal", "expert"] as const) {
+      for (let seed = 1; seed <= 15; seed++) {
+        const action = new BattleAI(difficulty, new SeededRNG(seed)).chooseAction(state, "player");
+        expect(action).toEqual({ type: "move", pokemonId: leafeon.id, moveId: "knock-off" });
+      }
+    }
+  });
+
+  it("falls back to Struggle once the locked move itself is out of PP, even if other moves have PP left", () => {
+    const engine = new BattleEngine(new SeededRNG(1));
+    const leafeon = buildPokemon("leafeon", "leafeon", ["knock-off", "quick-attack"], 50, { item: "choice-band" });
+    leafeon.choiceLockedMoveId = "knock-off";
+    leafeon.moves.find((m) => m.moveId === "knock-off")!.currentPP = 0;
+    const opponent = buildPokemon("opp", "blastoise", ["tackle"]);
+    const state = engine.createBattle([leafeon], [opponent]);
+
+    const action = new BattleAI("easy", new SeededRNG(1)).chooseAction(state, "player");
+    expect(action).toEqual({ type: "move", pokemonId: leafeon.id, moveId: "struggle" });
+  });
+
+  it("a full submitTurn round-trip no longer throws once locked (reproduces the reported bug)", () => {
+    const engine = new BattleEngine(new SeededRNG(1));
+    const ai = new BattleAI("normal", new SeededRNG(1));
+    const leafeon = buildPokemon("leafeon", "leafeon", ["knock-off", "swords-dance", "quick-attack"], 50, {
+      item: "choice-band",
+    });
+    leafeon.choiceLockedMoveId = "knock-off";
+    const opponent = buildPokemon("opp", "blastoise", ["tackle"]);
+    const state = engine.createBattle([leafeon], [opponent]);
+
+    const playerAction = ai.chooseAction(state, "player");
+    const opponentAction = ai.chooseAction(state, "opponent");
+    expect(() => engine.submitTurn(state, playerAction, opponentAction)).not.toThrow();
+  });
+});

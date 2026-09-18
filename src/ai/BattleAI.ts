@@ -1,5 +1,6 @@
 import { getMove } from "@/data/moves";
 import { otherSide, type BattleAction, type BattleSide, type BattleSideId, type BattleState } from "@/types/battle";
+import { getChoiceLockedMoveId } from "@/engine/ItemEngine";
 import type { BattleMove } from "@/types/moves";
 import type { Pokemon } from "@/types/pokemon";
 import type { RNG } from "@/utils/rng";
@@ -18,6 +19,16 @@ const EXPERT_LETHAL_HIT_CHANCE_THRESHOLD = 0.8;
 const STRUGGLE: BattleMove = { moveId: "struggle", currentPP: 1, maxPP: 1 };
 
 function usableMoves(pokemon: Pokemon): BattleMove[] {
+  const lockedMoveId = getChoiceLockedMoveId(pokemon);
+  if (lockedMoveId) {
+    // A Choice item holder can only ever submit its locked move — anything else is rejected by
+    // TurnEngine.validateAction, so the AI must never even consider another option here. If the
+    // locked move itself has run out of PP, Struggle is the only thing left (matches
+    // validateAction's Struggle-legality check for this same situation).
+    const locked = pokemon.moves.find((m) => m.moveId === lockedMoveId);
+    if (locked && locked.currentPP > 0 && !locked.disabled) return [locked];
+    return [STRUGGLE];
+  }
   const withPP = pokemon.moves.filter((m) => m.currentPP > 0 && !m.disabled);
   // TurnEngine only accepts "struggle" when every real move is out of PP — matches that here.
   return withPP.length > 0 ? withPP : [STRUGGLE];

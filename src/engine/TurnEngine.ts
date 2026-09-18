@@ -155,8 +155,13 @@ export class TurnEngine {
         );
       }
       if (action.moveId === STRUGGLE_MOVE_ID) {
-        const allOutOfPP = active.moves.every((m) => m.currentPP <= 0);
-        if (!allOutOfPP) {
+        // Choice-locked into a move that's since run out of PP: every *other* move may still
+        // have PP, but none of them are actually selectable, so Struggle must be legal here too.
+        const lockedMoveId = getChoiceLockedMoveId(active);
+        const outOfUsableMoves = lockedMoveId
+          ? (active.moves.find((m) => m.moveId === lockedMoveId)?.currentPP ?? 0) <= 0
+          : active.moves.every((m) => m.currentPP <= 0);
+        if (!outOfUsableMoves) {
           throw new Error(`"${active.id}" cannot use Struggle while it still has a usable move`);
         }
       } else {

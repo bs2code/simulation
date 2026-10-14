@@ -25,6 +25,11 @@ export function getMove(moveId: string): Move {
   return move;
 }
 
+export function findMove(moveId: string | undefined): Move | undefined {
+  if (!moveId) return undefined;
+  return MOVES_BY_ID.get(moveId);
+}
+
 export function getAllMoves(): Move[] {
   return ALL_MOVES;
 }

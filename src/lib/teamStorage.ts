@@ -1,8 +1,41 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { findAbility } from "@/data/abilities";
+import { findItem } from "@/data/items";
+import { findMove } from "@/data/moves";
+import { getSpecies } from "@/data/pokemon";
 import { createPokemon, type CreatePokemonConfig } from "@/utils/createPokemon";
 import type { Pokemon } from "@/types/pokemon";
+
+/**
+ * Validates one saved team member against the *current* game data before anything else ever
+ * reads it. Saved teams live in localStorage indefinitely, so a member saved under an older
+ * version of this app's data (a renamed/removed move, ability, item, or form id) can otherwise
+ * crash every page that renders it — getSpecies/getAbility/getMove all throw on an unknown id,
+ * with no try/catch anywhere downstream. Dropping an invalid member here is the one place that
+ * fix needs to live, rather than defensively guarding every render site that touches team data.
+ */
+function isValidMember(config: CreatePokemonConfig): boolean {
+  let species;
+  try {
+    species = getSpecies(config.speciesId);
+  } catch {
+    return false;
+  }
+  if (config.form && !species.forms?.some((f) => f.id === config.form)) return false;
+  if (!findAbility(config.ability)) return false;
+  if (config.item && !findItem(config.item)) return false;
+  return config.moveIds.length > 0 && config.moveIds.every((moveId) => findMove(moveId));
+}
+
+/** Exported for direct testing — the actual read path always runs saved data through this. */
+export function sanitizeMembers(members: unknown): CreatePokemonConfig[] {
+  if (!Array.isArray(members)) return [];
+  return (members as CreatePokemonConfig[]).filter(
+    (m) => m && typeof m === "object" && typeof m.speciesId === "string" && Array.isArray(m.moveIds) && isValidMember(m)
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Quick Teams — named snapshots of a team's members, saved separately from the two live
@@ -26,7 +59,9 @@ function readQuickTeamsFromStorage(): QuickTeam[] {
     if (!raw) return EMPTY_QUICK_TEAMS;
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return EMPTY_QUICK_TEAMS;
-    return parsed as QuickTeam[];
+    return (parsed as QuickTeam[])
+      .filter((t) => t && typeof t.id === "string" && typeof t.name === "string")
+      .map((t) => ({ ...t, members: sanitizeMembers(t.members) }));
   } catch {
     return EMPTY_QUICK_TEAMS;
   }
@@ -128,7 +163,8 @@ function readFromStorage(slot: TeamSlot): SavedTeam {
     if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as SavedTeam).members)) {
       return defaultTeam(slot);
     }
-    return parsed as SavedTeam;
+    const team = parsed as SavedTeam;
+    return { ...team, members: sanitizeMembers(team.members) };
   } catch {
     return defaultTeam(slot);
   }
